@@ -2,6 +2,7 @@
 #include <array>
 #include <iostream>     // std::cout
 #include <fstream>      // std::ifstream
+#include <exception> // runtime_error
 
 #include <unordered_set>
 #include <unordered_map>
@@ -60,7 +61,7 @@ void VkApp::createInstance(bool doApiDump)
     for (uint32_t x = 0; x < count; ++x)
     {
         // ...  use availableLayers[i].layerName
-        printf("%s\n",availableLayers[x].layerName);
+        std::cout << availableLayers[x].layerName << std::endl;
     }
     printf("\n");
 
@@ -75,7 +76,7 @@ void VkApp::createInstance(bool doApiDump)
     for (uint32_t x = 0; x < count; ++x)
     {
         // ...  use availableExtensions[i].extensionName
-        printf("%s\n",availableExtensions[x].extensionName);
+        std::cout << availableExtensions[x].extensionName << std::endl;
     }
     printf("\n");
 
@@ -121,6 +122,11 @@ void VkApp::createPhysicalDevice()
         VkPhysicalDeviceProperties GPUproperties;
         vkGetPhysicalDeviceProperties(physicalDevice, &GPUproperties);
 
+        if (GPUproperties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+        {
+            continue;
+        }
+
         // Get the GPU's extension list;  Another two-step list retrieval procedure:
         uint extCount;
         vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extCount, nullptr);
@@ -136,6 +142,29 @@ void VkApp::createPhysicalDevice()
         // is compatible with our requirements. We consider a GPU to be
         // compatible if it satisfies both:
         
+        bool deviceOK = true;
+        for (size_t i = 0; i < reqDeviceExtensions.size(); i++)
+        {
+            bool exists = false;
+            for (size_t j = 0; j < extCount; ++j)
+            {
+                if (strcmp(extensionProperties[j].extensionName, reqDeviceExtensions[i]) == 0)
+                    exists = true;
+            }
+            if (exists == false)
+            {
+                // we failed to find a suitable extension
+                deviceOK = false;
+                std::cout << "Device ["<< GPUproperties.deviceName <<"] missing required Ext " << "[" << reqDeviceExtensions[i] << "]" << std::endl;
+                break;
+            }
+        }
+        if (deviceOK)
+        {
+            compatibleDevices.push_back(i);
+        }
+        ++i;
+
         //    GPUproperties.deviceType==VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
         
         // and
@@ -148,6 +177,19 @@ void VkApp::createPhysicalDevice()
         //  Return it (physicalDevice), or continue the search and then return the best GPU.
         //    raise an exception of none were found
         //    tell me all about your system if more than one was found.
+    }
+
+    if (compatibleDevices.empty())
+    {
+        throw std::runtime_error("Could not find suitable GPU");
+    }
+
+    // we take first one for now. maybe find a better way to select GPU
+    m_physicalDevice = physicalDevices[compatibleDevices.front()];
+    {
+        VkPhysicalDeviceProperties GPUproperties;
+        vkGetPhysicalDeviceProperties(m_physicalDevice, &GPUproperties);
+        std::cout << "Selected GPU : [" << GPUproperties.deviceName << "]" << std::endl;
     }
   
 }

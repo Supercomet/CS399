@@ -29,8 +29,9 @@ constexpr integral align_up(integral x, size_t a) noexcept
 VkApp::VkApp(App* _app) : app(_app)
 {
      createInstance(app->doApiDump);
-    // assert (m_instance);
-    // createPhysicalDevice(); // i.e. the GPU
+     assert (m_instance);
+     createPhysicalDevice(); // i.e. the GPU
+     assert (m_physicalDevice);
     // chooseQueueIndex();
     // createDevice();
     // getCommandQueue();
