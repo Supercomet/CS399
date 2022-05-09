@@ -12,6 +12,12 @@
 #include "extensions_vk.hpp"
 #include "vktools.h" // custom helpers
 
+#ifdef GUI
+#include "backends/imgui_impl_glfw.h"
+#include "imgui.h"
+#include "backends/imgui_impl_vulkan.h"
+#endif
+
 #define VK_CHK(x) do{\
 VkResult result = x;\
 assert(result == VK_SUCCESS);\
@@ -26,6 +32,8 @@ void VkApp::destroyAllVulkanResources()
     // @@
      vkDeviceWaitIdle(m_device);  // Uncomment this when you have an m_device created.
 
+
+     destroyGUI();
 
      vkDestroyPipelineLayout(m_device, m_postPipelineLayout, nullptr);
      vkDestroyPipeline(m_device, m_postPipeline, nullptr);
@@ -444,6 +452,8 @@ void VkApp::createSwapchain()
                                                                       //  VkFormat surfaceFormat = formats[0].format;
                                                                       //  VkColorSpaceKHR surfaceColor  = formats[0].colorSpace;
     surfaceFormat = formats.front().format;
+    m_surfaceFormat = surfaceFormat;
+
     surfaceColor = formats.front().colorSpace;
     for (size_t i = 0; i < formats.size(); i++)
     {
@@ -489,6 +499,7 @@ void VkApp::createSwapchain()
 
     // Choose the number of swap chain images, within the bounds supported.
     uint imageCount = capabilities.minImageCount + 1; // Recommendation: minImageCount+1
+    m_minImageCount = capabilities.minImageCount;
     if (capabilities.maxImageCount > 0
         && imageCount > capabilities.maxImageCount) {
         imageCount = capabilities.maxImageCount; }
@@ -1146,6 +1157,144 @@ void VkApp::createPostPipeline()
     vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
     // Document the vkCreateGraphicsPipelines call with an api_dump.  
 
+}
+
+void VkApp::initGUI()
+{
+
+    VkAttachmentDescription attachment = {};
+    attachment.format = m_surfaceFormat;
+    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD; // Draw GUI on what exitst
+    attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    // TODO: make sure we set the previous renderpass to VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL 
+    // since this will be the final pass (before presentation) instead
+    attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR; // final layout for presentation.
+
+    VkAttachmentReference color_attachment = {};
+    color_attachment.attachment = 0;
+    color_attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &color_attachment;
+
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL; // create dependancy outside current renderpass
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; // make sure pixels have been fully rendered before performing this pass
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; // same thing
+    dependency.srcAccessMask = 0;  // or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    VkRenderPassCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    info.attachmentCount = 1;
+    info.pAttachments = &attachment;
+    info.subpassCount = 1;
+    info.pSubpasses = &subpass;
+    info.dependencyCount = 1;
+    info.pDependencies = &dependency;
+    VK_CHK(vkCreateRenderPass(m_device, &info, nullptr, &m_imguiRenderPass));
+
+
+    std::vector<VkDescriptorPoolSize> pool_sizes
+    {
+        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+    };
+
+    VkDescriptorPoolCreateInfo dpci = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    dpci.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());// Amount of pool sizes being passed
+    dpci.pPoolSizes = pool_sizes.data();// Pool sizes to create pool with
+    dpci.maxSets = 1; // Maximum number of descriptor sets that can be created from pool
+    VK_CHK(vkCreateDescriptorPool(m_device, &dpci, nullptr, &m_imguiDescPool));
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsClassic();
+
+    // Setup Platform/Renderer bindings
+    ImGui_ImplGlfw_InitForVulkan(app->GLFW_window, true);
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.Instance = m_instance;
+    init_info.PhysicalDevice = m_physicalDevice;
+    init_info.Device = m_device;
+    init_info.QueueFamily = m_graphicsQueueIndex;
+    init_info.Queue = m_queue;
+    init_info.PipelineCache = VK_NULL_HANDLE;
+    init_info.DescriptorPool = m_imguiDescPool;
+    init_info.Allocator = nullptr;
+    init_info.MinImageCount = m_minImageCount;
+    init_info.ImageCount = m_imageCount;
+    init_info.CheckVkResultFn = nullptr; // we can put our own check function if any
+    ImGui_ImplVulkan_Init(&init_info, m_postRenderPass);
+
+    VkCommandBuffer command_buffer = beginSingleTimeCommands();
+    ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+    endSingleTimeCommands(command_buffer); 
+
+}
+
+void VkApp::destroyGUI()
+{
+    vkDestroyRenderPass(m_device, m_imguiRenderPass, nullptr);
+    vkDestroyDescriptorPool(m_device, m_imguiDescPool, nullptr);
+    ImGui_ImplVulkan_Shutdown();
+}
+
+VkCommandBuffer VkApp::beginSingleTimeCommands() {
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = m_cmdPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(m_device, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    return commandBuffer;
+}
+
+void VkApp::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_queue);
+
+    vkFreeCommandBuffers(m_device, m_cmdPool, 1, &commandBuffer);
 }
 
 std::string VkApp::loadFile(const std::string& filename)

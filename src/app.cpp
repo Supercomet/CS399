@@ -10,9 +10,9 @@
 #include "app.h"
 #include "extensions_vk.hpp"
 
-#include "imgui-master/imgui.h"
-#include "imgui-master/backends/imgui_impl_glfw.h"
-#include "imgui-master/backends/imgui_impl_vulkan.h"
+//#include "imgui.h"
+//#include "backends/imgui_impl_glfw.h"
+//#include "backends/imgui_impl_vulkan.h"
 
 //#include <vulkan/vulkan.hpp>
 
@@ -25,6 +25,7 @@ static void onErrorCallback(int error, const char* description)
 #ifdef GUI
 void drawGUI(VkApp& VK)
 {
+    ImGui::ShowDemoWindow();
     ImGui::Text("Rate %.3f ms/frame (%.1f FPS)",
                 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 }
@@ -44,7 +45,7 @@ int main(int argc, char** argv)
 
     // TODO: TEMP pls remove
     app->doApiDump = false;
-
+    app->m_show_gui = true;
     VkApp VK(app); // Creates and manages all things Vulkan.
 
     // The draw loop

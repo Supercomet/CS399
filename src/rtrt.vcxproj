@@ -19,6 +19,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\libs\imgui-master\backends\imgui_impl_glfw.cpp" />
+    <ClCompile Include="..\libs\imgui-master\backends\imgui_impl_vulkan.cpp" />
+    <ClCompile Include="..\libs\imgui-master\imgui.cpp" />
+    <ClCompile Include="..\libs\imgui-master\imgui_demo.cpp" />
+    <ClCompile Include="..\libs\imgui-master\imgui_draw.cpp" />
+    <ClCompile Include="..\libs\imgui-master\imgui_widgets.cpp" />
     <ClCompile Include="app.cpp" />
     <ClCompile Include="vkapp.cpp" />
     <ClCompile Include="camera.cpp" />
@@ -124,7 +130,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN64;_DEBUG;_CONSOLE;GUI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;$(ProjectDir)..\libs\glfw/include;$(ProjectDir)..\libs\imgui;$(ProjectDir)..\libs\assimp\include;$(ProjectDir)..\libs\glm;$(ProjectDir)..\libs\;$(ProjectDir)..\libs\imgui-master</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>

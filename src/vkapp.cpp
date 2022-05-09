@@ -49,9 +49,9 @@ VkApp::VkApp(App* _app) : app(_app)
     //createPostDescriptor();
     createPostPipeline();
 
-    // #ifdef GUI
-    // initGUI();
-    // #endif
+    #ifdef GUI
+    initGUI();
+    #endif
     
     // myloadModel("models/living_room.obj", glm::mat4());
 

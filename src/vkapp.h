@@ -107,6 +107,7 @@ public:
     void createCommandPool();
 
     VkSwapchainKHR m_swapchain{VK_NULL_HANDLE};
+    uint32_t       m_minImageCount{0};
     uint32_t       m_imageCount{0};
     std::vector<VkImage>     m_swapchainImages{};  // from vkGetSwapchainImagesKHR
     std::vector<VkImageView> m_imageViews{};
@@ -116,6 +117,7 @@ public:
     VkSemaphore m_readSemaphore{};
     VkSemaphore m_writtenSemaphore{};
     VkExtent2D windowSize{0, 0}; // Size of the window
+    VkFormat m_surfaceFormat;
     void createSwapchain();
     void destroySwapchain();
     bool recreateSwapchain();
@@ -133,9 +135,15 @@ public:
     VkPipeline m_postPipeline{VK_NULL_HANDLE};
     void createPostPipeline();
     
+    VkCommandBuffer beginSingleTimeCommands();
+
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+
     #ifdef GUI
     VkDescriptorPool m_imguiDescPool{VK_NULL_HANDLE};
+    VkRenderPass m_imguiRenderPass;
     void initGUI();
+    void destroyGUI();
     #endif
     
     VkRenderPass m_scanlineRenderPass{VK_NULL_HANDLE};
