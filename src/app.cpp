@@ -42,6 +42,9 @@ int main(int argc, char** argv)
 {
     app =  new App(argc, argv); // Constructs the glfw window and sets UI callbacks
 
+    // TODO: TEMP pls remove
+    app->doApiDump = false;
+
     VkApp VK(app); // Creates and manages all things Vulkan.
 
     // The draw loop

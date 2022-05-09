@@ -25,6 +25,9 @@
     <ClCompile Include="extensions_vk.cpp" />
     <ClCompile Include="vkapp_fns.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="vktools.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

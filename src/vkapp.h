@@ -118,6 +118,7 @@ public:
     VkExtent2D windowSize{0, 0}; // Size of the window
     void createSwapchain();
     void destroySwapchain();
+    bool recreateSwapchain();
 
     ImageWrap m_depthImage;
     void createDepthResource();
