@@ -42,12 +42,12 @@ VkApp::VkApp(App* _app) : app(_app)
     createCommandPool();
     
     createSwapchain();
-    // createDepthResource();
-    // createPostRenderPass();
-    // createPostFrameBuffers();
+    createDepthResource();
+    createPostRenderPass();
+    createPostFrameBuffers();
 
-    // createPostDescriptor();
-    // createPostPipeline();
+    //createPostDescriptor();
+    createPostPipeline();
 
     // #ifdef GUI
     // initGUI();
@@ -81,11 +81,11 @@ VkApp::VkApp(App* _app) : app(_app)
 
 void VkApp::drawFrame()
 {        
-    //prepareFrame();
+    prepareFrame();
     
-    //VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-    //beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    //vkBeginCommandBuffer(m_commandBuffer, &beginInfo);
+    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(m_commandBuffer, &beginInfo);
     {   // Extra indent for recording commands into m_commandBuffer
         //updateCameraBuffer();
         
@@ -96,12 +96,12 @@ void VkApp::drawFrame()
         // else {
         //     rasterize(); }
         
-        //postProcess(); //  tone mapper and output to swapchain image.
+        postProcess(); //  tone mapper and output to swapchain image.
         
-        // vkEndCommandBuffer(m_commandBuffer);
+        vkEndCommandBuffer(m_commandBuffer);
     }   // Done recording;  Execute!
     
-        //submitFrame();  // Submit for display
+        submitFrame();  // Submit for display
 }
 
 VkAccessFlags accessFlagsForImageLayout(VkImageLayout layout)

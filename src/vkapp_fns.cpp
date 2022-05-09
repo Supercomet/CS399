@@ -26,6 +26,18 @@ void VkApp::destroyAllVulkanResources()
     // @@
      vkDeviceWaitIdle(m_device);  // Uncomment this when you have an m_device created.
 
+
+     vkDestroyPipelineLayout(m_device, m_postPipelineLayout, nullptr);
+     vkDestroyPipeline(m_device, m_postPipeline, nullptr);
+
+     for(uint32_t i = 0; i < m_framebuffers.size(); i++) 
+     {
+         vkDestroyFramebuffer(m_device, m_framebuffers[i], nullptr);
+     }
+
+     vkDestroyRenderPass(m_device, m_postRenderPass, nullptr);
+     m_depthImage.destroy(m_device);
+
      destroySwapchain();
 
      vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
@@ -512,10 +524,9 @@ void VkApp::createSwapchain()
 
 
     // Verify success
-    uint32_t imgCnt{};
-    VK_CHK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &imgCnt, nullptr));
-    m_swapchainImages.resize(imgCnt);
-    VK_CHK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &imgCnt, m_swapchainImages.data())); 
+    VK_CHK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount, nullptr));
+    m_swapchainImages.resize(m_imageCount);
+    VK_CHK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount, m_swapchainImages.data())); 
 
     // Verify and document that you retrieved the correct number of images.
     std::cout << "Swapchain Images: [" << m_swapchainImages.size() << "]" << std::endl;
@@ -735,10 +746,9 @@ bool VkApp::recreateSwapchain()
     m_swapchain = newSwapchain;
 
     // Verify success
-    uint32_t imgCnt{};
-    VK_CHK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &imgCnt, nullptr));
-    m_swapchainImages.resize(imgCnt);
-    VK_CHK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &imgCnt, m_swapchainImages.data())); 
+    VK_CHK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount, nullptr));
+    m_swapchainImages.resize(m_imageCount);
+    VK_CHK(vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount, m_swapchainImages.data())); 
 
     // Verify and document that you retrieved the correct number of images.
     std::cout << "Swapchain Images: [" << m_swapchainImages.size() << "]" << std::endl;
@@ -829,7 +839,6 @@ void VkApp::createDepthResource()
     m_depthImage.imageView = createImageView(m_depthImage.image,
         VK_FORMAT_X8_D24_UNORM_PACK32,
         VK_IMAGE_ASPECT_DEPTH_BIT);
-    // To destroy: m_depthImage.destroy(m_device);
 }
 
 // Gets a list of memory types supported by the GPU, and search
@@ -880,7 +889,7 @@ ImageWrap VkApp::createImageWrap(uint32_t width, uint32_t height,
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    vkCreateImage(m_device, &imageInfo, nullptr, &myImage.image);
+    VK_CHK(vkCreateImage(m_device, &imageInfo, nullptr, &myImage.image));
 
     VkMemoryRequirements memRequirements;
     vkGetImageMemoryRequirements(m_device, myImage.image, &memRequirements);
@@ -889,9 +898,9 @@ ImageWrap VkApp::createImageWrap(uint32_t width, uint32_t height,
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
 
-    vkAllocateMemory(m_device, &allocInfo, nullptr, &myImage.memory);
+    VK_CHK(vkAllocateMemory(m_device, &allocInfo, nullptr, &myImage.memory));
 
-    vkBindImageMemory(m_device, myImage.image, myImage.memory, 0);
+    VK_CHK(vkBindImageMemory(m_device, myImage.image, myImage.memory, 0));
 
     myImage.imageView = VK_NULL_HANDLE;
     myImage.sampler = VK_NULL_HANDLE;
@@ -914,8 +923,8 @@ VkImageView VkApp::createImageView(VkImage image, VkFormat format,
     viewInfo.subresourceRange.layerCount = 1;
 
     VkImageView imageView;
-    vkCreateImageView(m_device, &viewInfo, nullptr, &imageView);
-    // @@ Verify success for vkCreateImageView
+    VK_CHK(vkCreateImageView(m_device, &viewInfo, nullptr, &imageView));
+   
 
     return imageView;
 }
@@ -965,8 +974,7 @@ void VkApp::createPostRenderPass()
     renderPassInfo.dependencyCount = static_cast<uint32_t>(subpassDependencies.size());
     renderPassInfo.pDependencies   = subpassDependencies.data();
 
-    vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_postRenderPass);
-    // To destroy: vkDestroyRenderPass(m_device, m_postRenderPass, nullptr);
+    VK_CHK(vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_postRenderPass));
 }
 
 // A VkFrameBuffer wraps several images into a render target --
@@ -987,13 +995,12 @@ void VkApp::createPostFrameBuffers()
     // Each of the three swapchain images gets an associated frame
     // buffer, all sharing one depth buffer.
     m_framebuffers.resize(m_imageCount);
-    for(uint32_t i = 0; i < m_imageCount; i++) {
+    for(uint32_t i = 0; i < m_imageCount; i++) 
+    {
         fbattachments[0] = m_imageViews[i];         // A color attachment from the swap chain
         fbattachments[1] = m_depthImage.imageView;  // A depth attachment
-        vkCreateFramebuffer(m_device, &_ci, nullptr, &m_framebuffers[i]); }
-
-    // To destroy: In a loop, call: vkDestroyFramebuffer(m_device, m_framebuffers[i], nullptr);
-    // Verify success
+        VK_CHK(vkCreateFramebuffer(m_device, &_ci, nullptr, &m_framebuffers[i])); 
+    }
 }
 
 
@@ -1130,17 +1137,13 @@ void VkApp::createPostPipeline()
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
-        &m_postPipeline);
+    VK_CHK(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
+        &m_postPipeline));
 
     // The pipeline has fully compiled copies of the shaders, so these
     // intermediate (SPV) versions can be destroyed.
-    // @@
-    // For the two modules fragShaderModule and vertShaderModule
-    // destroy right *here* via vkDestroyShaderModule(m_device, ..., nullptr);
-
-    // To destroy:  vkDestroyPipelineLayout(m_device, m_postPipelineLayout, nullptr);
-    //  and:        vkDestroyPipeline(m_device, m_postPipeline, nullptr);
+    vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
     // Document the vkCreateGraphicsPipelines call with an api_dump.  
 
 }
