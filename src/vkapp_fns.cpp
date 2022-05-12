@@ -78,11 +78,12 @@ void VkApp::createInstance(bool doApiDump)
         reqInstanceExtensions.push_back(reqGLFWextensions[x]);
     }
     printf("\n");
+    reqInstanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 
     // Suggestion: Parse a command line argument to set/unset doApiDump
     if (doApiDump)
         reqInstanceLayers.push_back("VK_LAYER_LUNARG_api_dump");
-  
+    
     uint32_t count;
     // The two step procedure for getting a variable length list
     vkEnumerateInstanceLayerProperties(&count, nullptr);
@@ -948,6 +949,11 @@ void VkApp::createPostRenderPass()
     attachments[0].loadOp      = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     attachments[0].samples     = VK_SAMPLE_COUNT_1_BIT;
+#ifdef GUI
+    //we change this here becasuse we will be using imgui as a subpass
+    attachments[0].storeOp      = VK_ATTACHMENT_STORE_OP_STORE;
+    attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+#endif // GUI
 
     // Depth attachment
     attachments[1].format        = VK_FORMAT_X8_D24_UNORM_PACK32;
@@ -958,7 +964,6 @@ void VkApp::createPostRenderPass()
 
     const VkAttachmentReference colorReference{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
     const VkAttachmentReference depthReference{1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
-
 
     std::array<VkSubpassDependency, 1> subpassDependencies{};
     // Transition from final to initial (VK_SUBPASS_EXTERNAL refers to all commands executed outside of the actual renderpass)
@@ -1132,6 +1137,14 @@ void VkApp::createPostPipeline()
     colorBlending.blendConstants[2] = 0.0f;
     colorBlending.blendConstants[3] = 0.0f;
 
+    //set up dynamic states for viewport and scissor for ImGUI Docking branch support.
+    std::vector<VkDynamicState> dynamicStates{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+    VkPipelineDynamicStateCreateInfo dsi{};
+    dsi.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dsi.pNext = nullptr;
+    dsi.dynamicStateCount = dynamicStates.size();
+    dsi.pDynamicStates = dynamicStates.data();
+
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = 2;
@@ -1147,6 +1160,9 @@ void VkApp::createPostPipeline()
     pipelineInfo.renderPass = m_postRenderPass;
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+    
+    //allows viewport resize
+    pipelineInfo.pDynamicState = &dsi;
 
     VK_CHK(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
         &m_postPipeline));
@@ -1201,7 +1217,6 @@ void VkApp::initGUI()
     info.pDependencies = &dependency;
     VK_CHK(vkCreateRenderPass(m_device, &info, nullptr, &m_imguiRenderPass));
 
-
     std::vector<VkDescriptorPoolSize> pool_sizes
     {
         { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
@@ -1228,8 +1243,8 @@ void VkApp::initGUI()
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
@@ -1249,16 +1264,44 @@ void VkApp::initGUI()
     init_info.MinImageCount = m_minImageCount;
     init_info.ImageCount = m_imageCount;
     init_info.CheckVkResultFn = nullptr; // we can put our own check function if any
-    ImGui_ImplVulkan_Init(&init_info, m_postRenderPass);
 
+    ImGui_ImplVulkan_Init(&init_info, m_imguiRenderPass);
+    
+    // This uploads the ImGUI font package to the GPU
     VkCommandBuffer command_buffer = beginSingleTimeCommands();
     ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
     endSingleTimeCommands(command_buffer); 
+
+
+    // Create frame buffers for every swap chain image
+    std::array<VkImageView, 2> fbattachments{};
+    VkFramebufferCreateInfo _ci{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+    _ci.renderPass      = m_imguiRenderPass;
+    _ci.width           = windowSize.width;
+    _ci.height          = windowSize.height;
+    _ci.layers          = 1;
+    _ci.attachmentCount = 1;
+    _ci.pAttachments    = fbattachments.data();
+
+    // Each of the three swapchain images gets an associated frame
+    // buffer, all sharing one depth buffer.
+    m_imguiBuffers.resize(m_imageCount);
+    for(uint32_t i = 0; i < m_imageCount; i++) 
+    {
+        fbattachments[0] = m_imageViews[i];         // A color attachment from the swap chain
+        //fbattachments[1] = m_depthImage.imageView;  // A depth attachment
+        VK_CHK(vkCreateFramebuffer(m_device, &_ci, nullptr, &m_imguiBuffers[i])); 
+    }
 
 }
 
 void VkApp::destroyGUI()
 {
+    // Outside of here we called vkDeviceWaitIdle
+    for(uint32_t i = 0; i < m_imageCount; i++) 
+    {        
+        vkDestroyFramebuffer(m_device,  m_imguiBuffers[i], nullptr); 
+    }
     vkDestroyRenderPass(m_device, m_imguiRenderPass, nullptr);
     vkDestroyDescriptorPool(m_device, m_imguiDescPool, nullptr);
     ImGui_ImplVulkan_Shutdown();
@@ -1342,6 +1385,15 @@ void VkApp::postProcess()
         //vkCmdPushConstants(m_commandBuffer, m_postPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0,
         //                   sizeof(float), &aspectRatio);
         vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_postPipeline);
+
+        int w_width, w_height;
+        glfwGetWindowSize(app->GLFW_window, &w_width, &w_height);
+
+        VkViewport viewport = { 0, float(), float(w_width), float(w_height), 0, 1 };
+        VkRect2D scissor = { {0, 0}, {uint32_t(w_width),uint32_t(w_height) } };
+        vkCmdSetViewport(m_commandBuffer, 0, 1, &viewport);
+        vkCmdSetScissor(m_commandBuffer, 0, 1, &scissor);
+
         //vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
         //                       m_postPipelineLayout, 0, 0, nullptr, 0, nullptr);
 
@@ -1349,12 +1401,23 @@ void VkApp::postProcess()
         // Hint: The vertex shader fabricates vertices from gl_VertexIndex
         vkCmdDraw(m_commandBuffer, 3, 1, 0, 0);
 
-#ifdef GUI
-        ImGui::Render();  // Rendering UI
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_commandBuffer);
-#endif
     }
     vkCmdEndRenderPass(m_commandBuffer);
+#ifdef GUI
+    {
+    VkRenderPassBeginInfo info = {};
+    VkClearValue clear{ 0,0,0,0 };
+    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    info.renderPass = m_imguiRenderPass;
+    info.framebuffer = m_imguiBuffers[m_swapchainIndex];
+    info.renderArea      = {{0, 0}, windowSize};
+    vkCmdBeginRenderPass(m_commandBuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
+    ImGui::Render();  // Rendering UI
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_commandBuffer);
+    vkCmdEndRenderPass(m_commandBuffer);
+    }
+#endif
+
 }
 
 // That's all for now!

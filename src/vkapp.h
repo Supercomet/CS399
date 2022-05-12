@@ -142,6 +142,7 @@ public:
     #ifdef GUI
     VkDescriptorPool m_imguiDescPool{VK_NULL_HANDLE};
     VkRenderPass m_imguiRenderPass;
+    std::vector<VkFramebuffer> m_imguiBuffers;
     void initGUI();
     void destroyGUI();
     #endif

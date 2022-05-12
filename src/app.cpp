@@ -55,13 +55,22 @@ int main(int argc, char** argv)
         app->updateCamera();
         
         #ifdef GUI
+        ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         if(app->m_show_gui)
-            drawGUI(VK);
+            drawGUI(VK);       
         #endif
 
         VK.drawFrame();
+
+        ImGui::EndFrame();
+        // Update and Render additional Platform Windows
+        if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+        }
     }
 
     // Cleanup

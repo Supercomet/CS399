@@ -1,5 +1,6 @@
 #pragma once
 #include <vulkan/vulkan.h>
+#include "extensions_vk.hpp"
 #include <string>
 
 namespace vk
@@ -281,6 +282,21 @@ std::string VkColorSpaceKHRString(VkColorSpaceKHR value) {
     default: return std::string("UNKNOWN_VkColorSpaceKHR_value") + std::to_string(value);
     }
 }
+
+// not supported on my GPU
+//void setObjectName(VkDevice device, uint64_t object, VkDebugReportObjectTypeEXT objectType, const char *name)
+//{
+//    // Check for a valid function pointer
+//    if (vkDebugMarkerSetObjectNameEXT)
+//    {
+//        VkDebugMarkerObjectNameInfoEXT nameInfo = {};
+//        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+//        nameInfo.objectType = objectType;
+//        nameInfo.object = object;
+//        nameInfo.pObjectName = name;
+//        vkDebugMarkerSetObjectNameEXT(device, &nameInfo);
+//    }
+//}
 
 
 }// end namespace tools
