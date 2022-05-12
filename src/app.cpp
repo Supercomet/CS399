@@ -25,7 +25,6 @@ static void onErrorCallback(int error, const char* description)
 #ifdef GUI
 void drawGUI(VkApp& VK)
 {
-    ImGui::ShowDemoWindow();
     ImGui::Text("Rate %.3f ms/frame (%.1f FPS)",
                 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 }
@@ -64,6 +63,8 @@ int main(int argc, char** argv)
 
         VK.drawFrame();
 
+#ifdef GUI
+        // Now we need to call EndFrame and allow all the windows to process and update
         ImGui::EndFrame();
         // Update and Render additional Platform Windows
         if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
@@ -71,6 +72,7 @@ int main(int argc, char** argv)
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
         }
+#endif // GUI
     }
 
     // Cleanup

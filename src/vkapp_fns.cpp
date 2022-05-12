@@ -32,8 +32,9 @@ void VkApp::destroyAllVulkanResources()
     // @@
      vkDeviceWaitIdle(m_device);  // Uncomment this when you have an m_device created.
 
-
+#ifdef GUI
      destroyGUI();
+#endif
 
      vkDestroyPipelineLayout(m_device, m_postPipelineLayout, nullptr);
      vkDestroyPipeline(m_device, m_postPipeline, nullptr);
@@ -1175,6 +1176,8 @@ void VkApp::createPostPipeline()
 
 }
 
+#ifdef GUI
+
 void VkApp::initGUI()
 {
 
@@ -1240,7 +1243,7 @@ void VkApp::initGUI()
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
@@ -1274,6 +1277,7 @@ void VkApp::initGUI()
 
 
     // Create frame buffers for every swap chain image
+    // We need to do this because ImGUI only cares about the colour attachment.
     std::array<VkImageView, 2> fbattachments{};
     VkFramebufferCreateInfo _ci{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
     _ci.renderPass      = m_imguiRenderPass;
@@ -1295,6 +1299,7 @@ void VkApp::initGUI()
 
 }
 
+// We need to release all the resources we created to use ImGUI
 void VkApp::destroyGUI()
 {
     // Outside of here we called vkDeviceWaitIdle
@@ -1306,6 +1311,8 @@ void VkApp::destroyGUI()
     vkDestroyDescriptorPool(m_device, m_imguiDescPool, nullptr);
     ImGui_ImplVulkan_Shutdown();
 }
+
+#endif // GUI
 
 VkCommandBuffer VkApp::beginSingleTimeCommands() {
     VkCommandBufferAllocateInfo allocInfo{};
