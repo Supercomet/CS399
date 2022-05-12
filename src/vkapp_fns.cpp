@@ -1138,14 +1138,6 @@ void VkApp::createPostPipeline()
     colorBlending.blendConstants[2] = 0.0f;
     colorBlending.blendConstants[3] = 0.0f;
 
-    //set up dynamic states for viewport and scissor for ImGUI Docking branch support.
-    std::vector<VkDynamicState> dynamicStates{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-    VkPipelineDynamicStateCreateInfo dsi{};
-    dsi.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dsi.pNext = nullptr;
-    dsi.dynamicStateCount = dynamicStates.size();
-    dsi.pDynamicStates = dynamicStates.data();
-
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = 2;
@@ -1162,8 +1154,6 @@ void VkApp::createPostPipeline()
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     
-    //allows viewport resize
-    pipelineInfo.pDynamicState = &dsi;
 
     VK_CHK(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
         &m_postPipeline));
@@ -1173,14 +1163,12 @@ void VkApp::createPostPipeline()
     vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
     vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
     // Document the vkCreateGraphicsPipelines call with an api_dump.  
-
 }
 
 #ifdef GUI
-
+// This function helps intialize a bunch of structures that ImGui uses for their rendering.
 void VkApp::initGUI()
 {
-
     VkAttachmentDescription attachment = {};
     attachment.format = m_surfaceFormat;
     attachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -1189,7 +1177,7 @@ void VkApp::initGUI()
     attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    // TODO: make sure we set the previous renderpass to VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL 
+    // make sure we set our preceeding renderpass to VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL 
     // since this will be the final pass (before presentation) instead
     attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR; // final layout for presentation.
 
@@ -1203,11 +1191,11 @@ void VkApp::initGUI()
     subpass.pColorAttachments = &color_attachment;
 
     VkSubpassDependency dependency = {};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL; // create dependancy outside current renderpass
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;                             // create dependancy outside current renderpass
     dependency.dstSubpass = 0;
     dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; // make sure pixels have been fully rendered before performing this pass
     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; // same thing
-    dependency.srcAccessMask = 0;  // or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.srcAccessMask = 0;                                            // or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
     VkRenderPassCreateInfo info = {};
@@ -1218,8 +1206,13 @@ void VkApp::initGUI()
     info.pSubpasses = &subpass;
     info.dependencyCount = 1;
     info.pDependencies = &dependency;
+
+    // We have to set up a renderpass for imgui to use for their windows
     VK_CHK(vkCreateRenderPass(m_device, &info, nullptr, &m_imguiRenderPass));
 
+
+    // ImGui uses these descriptors in their backend
+    // Unsure if all are being used or its just for example.
     std::vector<VkDescriptorPoolSize> pool_sizes
     {
         { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
@@ -1254,6 +1247,7 @@ void VkApp::initGUI()
     //ImGui::StyleColorsClassic();
 
     // Setup Platform/Renderer bindings
+    // Now we bind all the information from our renderer into the ImGui IO
     ImGui_ImplGlfw_InitForVulkan(app->GLFW_window, true);
     ImGui_ImplVulkan_InitInfo init_info = {};
     init_info.Instance = m_instance;
@@ -1275,7 +1269,6 @@ void VkApp::initGUI()
     ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
     endSingleTimeCommands(command_buffer); 
 
-
     // Create frame buffers for every swap chain image
     // We need to do this because ImGUI only cares about the colour attachment.
     std::array<VkImageView, 2> fbattachments{};
@@ -1296,7 +1289,6 @@ void VkApp::initGUI()
         //fbattachments[1] = m_depthImage.imageView;  // A depth attachment
         VK_CHK(vkCreateFramebuffer(m_device, &_ci, nullptr, &m_imguiBuffers[i])); 
     }
-
 }
 
 // We need to release all the resources we created to use ImGUI
@@ -1311,9 +1303,9 @@ void VkApp::destroyGUI()
     vkDestroyDescriptorPool(m_device, m_imguiDescPool, nullptr);
     ImGui_ImplVulkan_Shutdown();
 }
-
 #endif // GUI
 
+// Immediate command sending helper
 VkCommandBuffer VkApp::beginSingleTimeCommands() {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -1333,6 +1325,7 @@ VkCommandBuffer VkApp::beginSingleTimeCommands() {
     return commandBuffer;
 }
 
+// Immediate command sending helper
 void VkApp::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
     vkEndCommandBuffer(commandBuffer);
 
@@ -1393,14 +1386,6 @@ void VkApp::postProcess()
         //                   sizeof(float), &aspectRatio);
         vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_postPipeline);
 
-        int w_width, w_height;
-        glfwGetWindowSize(app->GLFW_window, &w_width, &w_height);
-
-        VkViewport viewport = { 0, float(), float(w_width), float(w_height), 0, 1 };
-        VkRect2D scissor = { {0, 0}, {uint32_t(w_width),uint32_t(w_height) } };
-        vkCmdSetViewport(m_commandBuffer, 0, 1, &viewport);
-        vkCmdSetScissor(m_commandBuffer, 0, 1, &scissor);
-
         //vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
         //                       m_postPipelineLayout, 0, 0, nullptr, 0, nullptr);
 
@@ -1412,13 +1397,12 @@ void VkApp::postProcess()
     vkCmdEndRenderPass(m_commandBuffer);
 #ifdef GUI
     {
-    VkRenderPassBeginInfo info = {};
-    VkClearValue clear{ 0,0,0,0 };
-    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    info.renderPass = m_imguiRenderPass;
-    info.framebuffer = m_imguiBuffers[m_swapchainIndex];
-    info.renderArea      = {{0, 0}, windowSize};
-    vkCmdBeginRenderPass(m_commandBuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
+    VkRenderPassBeginInfo GUIpassInfo = {};
+    GUIpassInfo.sType       = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    GUIpassInfo.renderPass  = m_imguiRenderPass;
+    GUIpassInfo.framebuffer = m_imguiBuffers[m_swapchainIndex];
+    GUIpassInfo.renderArea  = {{0, 0}, windowSize};
+    vkCmdBeginRenderPass(m_commandBuffer, &GUIpassInfo, VK_SUBPASS_CONTENTS_INLINE);
     ImGui::Render();  // Rendering UI
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_commandBuffer);
     vkCmdEndRenderPass(m_commandBuffer);

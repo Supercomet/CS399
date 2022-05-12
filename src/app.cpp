@@ -10,12 +10,6 @@
 #include "app.h"
 #include "extensions_vk.hpp"
 
-//#include "imgui.h"
-//#include "backends/imgui_impl_glfw.h"
-//#include "backends/imgui_impl_vulkan.h"
-
-//#include <vulkan/vulkan.hpp>
-
 // GLFW Callback functions
 static void onErrorCallback(int error, const char* description)
 {
@@ -25,8 +19,18 @@ static void onErrorCallback(int error, const char* description)
 #ifdef GUI
 void drawGUI(VkApp& VK)
 {
+
+    // Create a dockspace over the mainviewport so that we can dock stuff
+    ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(), 
+        ImGuiDockNodeFlags_PassthruCentralNode // make the dockspace transparent
+        | ImGuiDockNodeFlags_NoDockingInCentralNode // dont allow docking in the central area
+    );
+
+    // This needs a window if we want to dock it.
+    ImGui::Begin("Debug");
     ImGui::Text("Rate %.3f ms/frame (%.1f FPS)",
                 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::End();
 }
 #endif
 
@@ -45,6 +49,7 @@ int main(int argc, char** argv)
     // TODO: TEMP pls remove
     app->doApiDump = false;
     app->m_show_gui = true;
+
     VkApp VK(app); // Creates and manages all things Vulkan.
 
     // The draw loop
@@ -64,11 +69,11 @@ int main(int argc, char** argv)
         VK.drawFrame();
 
 #ifdef GUI
-        // Now we need to call EndFrame and allow all the windows to process and update
+        // Now we need to call EndFrame and allow all the other windows to process and update
         ImGui::EndFrame();
         // Update and Render additional Platform Windows
         if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-        {
+        {            
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
         }
