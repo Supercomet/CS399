@@ -32,9 +32,45 @@ void VkApp::destroyAllVulkanResources()
     // @@
      vkDeviceWaitIdle(m_device);  // Uncomment this when you have an m_device created.
 
+     vkDestroyPipelineLayout(m_device, m_scanlinePipelineLayout, nullptr);
+     vkDestroyPipeline(m_device, m_scanlinePipeline, nullptr);
+
+     m_scDesc.destroy(m_device);
+
+     vkDestroyRenderPass(m_device, m_scanlineRenderPass, nullptr);
+     vkDestroyFramebuffer(m_device, m_scanlineFramebuffer, nullptr);
+
+     m_objDescriptionBW.destroy(m_device);
+
+     m_matrixBW.destroy(m_device);
+
+     for (size_t i = 0; i < m_objText.size(); i++)
+     {
+         m_objText[i].destroy(m_device);
+     }
+
+     for (size_t i = 0; i < m_objData.size(); i++)
+     {
+		 ObjData& obj = m_objData[i];
+		 obj.vertexBuffer.destroy(m_device);
+		 obj.indexBuffer.destroy(m_device);
+		 obj.matColorBuffer.destroy(m_device);
+		 obj.matIndexBuffer.destroy(m_device);
+
+     }
+
+     for (size_t i = 0; i < m_objDesc.size(); i++)
+     {
+         // TODO::destroy description
+         //m_objDesc[i].destroy(m_device);
+     }
+
 #ifdef GUI
      destroyGUI();
 #endif
+
+     m_scImageBuffer.destroy(m_device);
+     m_postDesc.destroy(m_device);
 
      vkDestroyPipelineLayout(m_device, m_postPipelineLayout, nullptr);
      vkDestroyPipeline(m_device, m_postPipeline, nullptr);
@@ -79,7 +115,6 @@ void VkApp::createInstance(bool doApiDump)
         reqInstanceExtensions.push_back(reqGLFWextensions[x]);
     }
     printf("\n");
-    reqInstanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 
     // Suggestion: Parse a command line argument to set/unset doApiDump
     if (doApiDump)
@@ -1036,8 +1071,8 @@ void VkApp::createPostPipeline()
     //createInfo.pPushConstantRanges    = &pushConstantRanges;
 
     // What we can do now as a first pass:
-    createInfo.setLayoutCount         = 0;
-    createInfo.pSetLayouts            = nullptr;
+    createInfo.setLayoutCount         = 1;
+    createInfo.pSetLayouts            = &m_postDesc.descSetLayout;
     createInfo.pushConstantRangeCount = 0;
     createInfo.pPushConstantRanges    = nullptr;
 
@@ -1385,9 +1420,9 @@ void VkApp::postProcess()
         //vkCmdPushConstants(m_commandBuffer, m_postPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0,
         //                   sizeof(float), &aspectRatio);
         vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_postPipeline);
-
-        //vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-        //                       m_postPipelineLayout, 0, 0, nullptr, 0, nullptr);
+        
+        vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                               m_postPipelineLayout, 0, 1, &m_postDesc.descSet, 0, nullptr);
 
         // Weird! This draws 3 vertices but with no vertices/triangles buffers bound in.
         // Hint: The vertex shader fabricates vertices from gl_VertexIndex

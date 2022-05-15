@@ -47,5 +47,5 @@ void Camera::setMousePosition(const float x, const float y)
 
 void Camera::wheel(const int dir)
 {
-    printf("wheel: %d\n", dir);
+    //printf("wheel: %d\n", dir);
 }

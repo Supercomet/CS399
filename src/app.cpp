@@ -166,9 +166,9 @@ void App::updateCamera()
         myCamera.eye -= dist*glm::vec3(cos(myCamera.spin*rad), 0.0, sin(myCamera.spin*rad));
     if (glfwGetKey(GLFW_window, GLFW_KEY_D) == GLFW_PRESS)
         myCamera.eye += dist*glm::vec3(cos(myCamera.spin*rad), 0.0, sin(myCamera.spin*rad));
-    if (glfwGetKey(GLFW_window, GLFW_KEY_SPACE) == GLFW_PRESS)
+    if (glfwGetKey(GLFW_window, GLFW_KEY_SPACE) == GLFW_PRESS || glfwGetKey(GLFW_window, GLFW_KEY_E)== GLFW_PRESS )
         myCamera.eye += dist*glm::vec3(0,-1,0);
-    if (glfwGetKey(GLFW_window, GLFW_KEY_C) == GLFW_PRESS)
+    if (glfwGetKey(GLFW_window, GLFW_KEY_C) == GLFW_PRESS || glfwGetKey(GLFW_window, GLFW_KEY_Q)== GLFW_PRESS)
         myCamera.eye += dist*glm::vec3(0,1,0);
 }
 

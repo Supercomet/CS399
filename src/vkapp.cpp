@@ -46,26 +46,27 @@ VkApp::VkApp(App* _app) : app(_app)
     createPostRenderPass();
     createPostFrameBuffers();
 
-    //createPostDescriptor();
+    createScBuffer();
+    createPostDescriptor();
     createPostPipeline();
 
     #ifdef GUI
     initGUI();
     #endif
     
-    // myloadModel("models/living_room.obj", glm::mat4());
+    myloadModel("models/living_room.obj", glm::mat4());
 
-    // createScBuffer();
+    createMatrixBuffer();
+    createObjDescriptionBuffer();
+    createScanlineRenderPass();
+    createScDescriptorSet();
+    createScPipeline();
+
     // createRtBuffers();
     // createDenoiseBuffer();
 
-    // createScanlineRenderPass();
     // createStuff();
 
-    // createMatrixBuffer();
-    // createObjDescriptionBuffer();
-    // createScDescriptorSet();
-    // createScPipeline();
 
     // //init ray tracing capabilities
     // initRayTracing();
@@ -87,14 +88,15 @@ void VkApp::drawFrame()
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(m_commandBuffer, &beginInfo);
     {   // Extra indent for recording commands into m_commandBuffer
-        //updateCameraBuffer();
+        updateCameraBuffer();
         
         // Draw scene
         // if (useRaytracer) {
         //     raytrace();`
         //     denoise(); }
         // else {
-        //     rasterize(); }
+             rasterize(); 
+         //}
         
         postProcess(); //  tone mapper and output to swapchain image.
         
@@ -104,50 +106,6 @@ void VkApp::drawFrame()
         submitFrame();  // Submit for display
 }
 
-VkAccessFlags accessFlagsForImageLayout(VkImageLayout layout)
-{
-    switch(layout)
-        {
-        case VK_IMAGE_LAYOUT_PREINITIALIZED:
-            return VK_ACCESS_HOST_WRITE_BIT;
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            return VK_ACCESS_TRANSFER_WRITE_BIT;
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            return VK_ACCESS_TRANSFER_READ_BIT;
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            return VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            return VK_ACCESS_SHADER_READ_BIT;
-        default:
-            return VkAccessFlags();
-        }
-}
-
-VkPipelineStageFlags pipelineStageForLayout(VkImageLayout layout)
-{
-    switch(layout)
-        {
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            return VK_PIPELINE_STAGE_TRANSFER_BIT;
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            return VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;  // Allow queue other than graphic
-            // return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;  // Allow queue other than graphic
-            // return VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        case VK_IMAGE_LAYOUT_PREINITIALIZED:
-            return VK_PIPELINE_STAGE_HOST_BIT;
-        case VK_IMAGE_LAYOUT_UNDEFINED:
-            return VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        default:
-            return VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-        }
-}
 
 //-------------------------------------------------------------------------------------------------
 // Post processing pass: tone mapper, UI
