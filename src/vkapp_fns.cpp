@@ -160,10 +160,10 @@ void VkApp::createInstance(bool doApiDump)
     instanceCreateInfo.pNext                   = nullptr;
     instanceCreateInfo.pApplicationInfo        = &applicationInfo;
     
-    instanceCreateInfo.enabledExtensionCount   = reqInstanceExtensions.size();
+    instanceCreateInfo.enabledExtensionCount   = static_cast<uint32_t>(reqInstanceExtensions.size());
     instanceCreateInfo.ppEnabledExtensionNames = reqInstanceExtensions.data();
     
-    instanceCreateInfo.enabledLayerCount       = reqInstanceLayers.size();
+    instanceCreateInfo.enabledLayerCount       = static_cast<uint32_t>(reqInstanceLayers.size());
     instanceCreateInfo.ppEnabledLayerNames     = reqInstanceLayers.data();
 
     VK_CHK(vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance));
@@ -181,9 +181,16 @@ void VkApp::createPhysicalDevice()
     std::vector<VkPhysicalDevice> physicalDevices(physicalDevicesCount);
     vkEnumeratePhysicalDevices(m_instance, &physicalDevicesCount, physicalDevices.data());
 
+    std::cout << "Required device Extensions:" << std::endl;
+    for (auto& ext : reqDeviceExtensions)
+    {
+        std::cout <<'\t' << ext << std::endl;
+    }
+    std::cout << std::endl;
+
 	std::vector<uint32_t> compatibleDevices;
 
-	printf("%d devices\n", physicalDevicesCount);
+	std::cout<< physicalDevicesCount << " devices found." <<std::endl;
 	int i = 0;
 
 	// For each GPU:
@@ -282,7 +289,7 @@ void VkApp::chooseQueueIndex()
     {
         if ((queueProperties[i].queueFlags & requiredQueueFlags) == requiredQueueFlags)
         {
-            selectedQueue = i;
+            selectedQueue = static_cast<uint32_t>(i);
             break;
         }
     }
@@ -416,7 +423,6 @@ void VkApp::createCommandPool()
 // 
 void VkApp::createSwapchain()
 {
-    VkResult       err;
     VkSwapchainKHR oldSwapchain = m_swapchain;
 
     vkDeviceWaitIdle(m_device);  // Probably unnecessary
@@ -456,6 +462,7 @@ void VkApp::createSwapchain()
             break;
         }
     }
+    std::cout << std::endl;
 
     // Choose VK_PRESENT_MODE_FIFO_KHR as a default (this must be supported)
     VkPresentModeKHR swapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR; // Support is required by specification.
@@ -494,7 +501,7 @@ void VkApp::createSwapchain()
     surfaceColor = formats.front().colorSpace;
     for (size_t i = 0; i < formats.size(); i++)
     {
-        if (formats[i].format = VK_FORMAT_B8G8R8A8_UNORM)
+        if (formats[i].format == VK_FORMAT_B8G8R8A8_UNORM)
         {
             surfaceFormat = formats[i].format;
             surfaceColor = formats[i].colorSpace;
@@ -503,6 +510,7 @@ void VkApp::createSwapchain()
     }
     std::cout<< "Chosen Format:" << vk::tools::VkFormatString(surfaceFormat)
         << "\tColourSpace: " << vk::tools::VkColorSpaceKHRString(surfaceColor) << std::endl;
+    std::cout << std::endl;
                                                                       // @@ Then search the formats (from several lines up) to choose
                                                                       // format VK_FORMAT_B8G8R8A8_UNORM (and its color space) if such
                                                                       // exists.  Document your list of formats/color-spaces, and your
@@ -578,6 +586,7 @@ void VkApp::createSwapchain()
 
     // Verify and document that you retrieved the correct number of images.
     std::cout << "Swapchain Images: [" << m_swapchainImages.size() << "]" << std::endl;
+    std::cout << std::endl;
 
     m_barriers.resize(m_imageCount);
     m_imageViews.resize(m_imageCount);
@@ -717,7 +726,7 @@ bool VkApp::recreateSwapchain()
     surfaceColor = formats.front().colorSpace;
     for (size_t i = 0; i < formats.size(); i++)
     {
-        if (formats[i].format = VK_FORMAT_B8G8R8A8_UNORM)
+        if (formats[i].format == VK_FORMAT_B8G8R8A8_UNORM)
         {
             surfaceFormat = formats[i].format;
             surfaceColor = formats[i].colorSpace;
@@ -870,6 +879,8 @@ bool VkApp::recreateSwapchain()
     //NAME(m_queue, VK_OBJECT_TYPE_QUEUE, "m_queue");
 
     windowSize = swapchainExtent;
+
+    return true;
 }
 
 

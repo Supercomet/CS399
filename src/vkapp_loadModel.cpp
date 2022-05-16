@@ -62,11 +62,12 @@ void VkApp::myloadModel(const std::string& filename, glm::mat4 transform)
     ModelData meshdata;
     meshdata.readAssimpFile(filename.c_str(), glm::mat4());
 
-    printf("vertices: %ld\n", meshdata.vertices.size());
-    printf("indices: %ld (%ld)\n", meshdata.indicies.size(), meshdata.indicies.size()/3);
-    printf("materials: %ld\n", meshdata.materials.size());
-    printf("matIndx: %ld\n", meshdata.matIndx.size());
-    printf("textures: %ld\n", meshdata.textures.size());
+    printf("vertices: %lld\n", meshdata.vertices.size());
+    printf("indices: %lld (%lld)\n", meshdata.indicies.size(), meshdata.indicies.size()/3);
+    printf("materials: %lld\n", meshdata.materials.size());
+    printf("matIndx: %lld\n", meshdata.matIndx.size());
+    printf("textures: %lld\n", meshdata.textures.size());
+    std::cout << std::endl;
 
     std::vector<uint32_t> lights;
     for (size_t i = 0; i < meshdata.materials.size(); ++i)

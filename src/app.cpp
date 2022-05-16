@@ -175,6 +175,7 @@ void App::updateCamera()
 App::App(int argc, char** argv)
 {
     doApiDump = false;
+    m_show_gui = true;
 
     int argi = 1;
     while (argi<argc) {
