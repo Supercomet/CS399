@@ -1,1 +1,3 @@
 *.dll
+*.frag.spv
+*.vert.spv

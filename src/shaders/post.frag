@@ -7,5 +7,5 @@ layout(set = 0, binding  = 0) uniform sampler2D renderedImage;
 void main()
 {
     vec2 uv = gl_FragCoord.xy/vec2(1280, 768);
-	fragColor = texture(renderedImage,uv);
+	fragColor = pow(texture(renderedImage,uv), vec4(1.0/2.2));
 }
