@@ -39,7 +39,7 @@
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
       <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
-      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslangValidator.exe -V -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
+      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslc.exe --target-env=vulkan1.3  -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
       <Message>Compiling shader %(Identity)</Message>
       <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
       <BuildInParallel>true</BuildInParallel>
@@ -48,7 +48,7 @@
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
       <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
-      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslangValidator.exe -V -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
+      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslc.exe --target-env=vulkan1.3  -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
       <Message>Compiling shader %(Identity)</Message>
       <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
       <BuildInParallel>true</BuildInParallel>
@@ -57,7 +57,7 @@
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
       <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
-      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslangValidator.exe -V -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
+      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslc.exe --target-env=vulkan1.3  -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
       <Message>Compiling shader %(Identity)</Message>
       <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
       <BuildInParallel>true</BuildInParallel>
@@ -66,7 +66,7 @@
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
       <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
-      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslangValidator.exe -V -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
+      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslc.exe --target-env=vulkan1.3  -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
       <Message>Compiling shader %(Identity)</Message>
       <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
       <BuildInParallel>true</BuildInParallel>
@@ -75,7 +75,7 @@
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
       <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
-      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslangValidator.exe -V -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
+      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslc.exe --target-env=vulkan1.3  -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
       <Message>Compiling shader %(Identity)</Message>
       <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
       <BuildInParallel>true</BuildInParallel>
@@ -84,7 +84,7 @@
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
       <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
-      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslangValidator.exe -V -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
+      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslc.exe --target-env=vulkan1.3  -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
       <Message>Compiling shader %(Identity)</Message>
       <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
       <BuildInParallel>true</BuildInParallel>
@@ -93,7 +93,7 @@
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
       <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
-      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslangValidator.exe -V -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
+      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslc.exe --target-env=vulkan1.3  -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
       <Message>Compiling shader %(Identity)</Message>
       <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
       <BuildInParallel>true</BuildInParallel>
@@ -102,7 +102,7 @@
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
       <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
-      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslangValidator.exe -V -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
+      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslc.exe --target-env=vulkan1.3  -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
       <Message>Compiling shader %(Identity)</Message>
       <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
       <BuildInParallel>true</BuildInParallel>
@@ -111,7 +111,7 @@
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
       <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
-      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslangValidator.exe -V -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
+      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslc.exe --target-env=vulkan1.3  -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
       <Message>Compiling shader %(Identity)</Message>
       <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
       <BuildInParallel>true</BuildInParallel>
@@ -120,7 +120,7 @@
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
       <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
-      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslangValidator.exe -V -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
+      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslc.exe --target-env=vulkan1.3  -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
       <Message>Compiling shader %(Identity)</Message>
       <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
       <BuildInParallel>true</BuildInParallel>
@@ -129,7 +129,7 @@
       <FileType>Document</FileType>
       <LinkObjects>false</LinkObjects>
       <AdditionalInputs>shaders\shared_structs.h</AdditionalInputs>
-      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslangValidator.exe -V -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
+      <Command>cmd /C "if exist %(Identity) %VULKAN_SDK%/Bin/glslc.exe --target-env=vulkan1.3  -o spv\%(Filename)%(Extension).spv %(Identity)"</Command>
       <Message>Compiling shader %(Identity)</Message>
       <Outputs>spv\%(Filename)%(Extension).spv</Outputs>
       <BuildInParallel>true</BuildInParallel>

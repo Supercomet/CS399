@@ -79,6 +79,9 @@ void VkApp::myloadModel(const std::string& filename, glm::mat4 transform)
             lights.emplace_back(i);
         }
     }
+    for (size_t i = 0; i < meshdata.vertices.size(); i++)
+    {
+    }
     
     // @@ Go though the list of meshdata.materials, find the ones that
     // are emitters, and scale the emission up by a factor of 5.  The

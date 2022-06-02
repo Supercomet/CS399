@@ -20,8 +20,9 @@
 
 #define VK_CHK(x) do{\
 VkResult result = x;\
-assert(result == VK_SUCCESS);\
 if(result != VK_SUCCESS){\
+std::cout<< vk::tools::VkResultString(result)<< std::endl;\
+assert(result == VK_SUCCESS);\
 throw std::runtime_error("Failed Vulkan Check");\
 }\
 }while(0)\
@@ -39,7 +40,7 @@ void VkApp::destroyAllVulkanResources()
 
      vkDestroyRenderPass(m_device, m_scanlineRenderPass, nullptr);
      vkDestroyFramebuffer(m_device, m_scanlineFramebuffer, nullptr);
-
+     
      m_objDescriptionBW.destroy(m_device);
 
      m_matrixBW.destroy(m_device);
