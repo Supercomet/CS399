@@ -171,6 +171,12 @@ void main()
 
   // This very minimal lighting calculation should be replaced with a modern BRDF calculation. 
   //fragColor.xyz = pcRaster.lightIntensity*NL*Kd/pi;
-  fragColor.xyz = ambient+pcRaster.lightIntensity*NL*GGXBRDF(L,V,H,N,alpha,Kd,Ks);
+  if(pcRaster.BRDF > 0){
+    fragColor.xyz = ambient+pcRaster.lightIntensity*NL*BeckhamBRDF(L,V,H,N,alpha,Kd,Ks);
+  }else if(pcRaster.BRDF < 0){ 
+    fragColor.xyz = ambient+pcRaster.lightIntensity*NL*PhongBRDF(L,V,H,N,alpha,Kd,Ks);
+  }else{
+    fragColor.xyz = ambient+pcRaster.lightIntensity*NL*GGXBRDF(L,V,H,N,alpha,Kd,Ks);
+  } 
 
 }

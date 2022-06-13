@@ -66,11 +66,11 @@ VkPipelineStageFlags pipelineStageForLayout(VkImageLayout layout)
 }
 
 
-void imageLayoutBarrier(VkCommandBuffer cmdbuffer,
+void VkApp::imageLayoutBarrier(VkCommandBuffer cmdbuffer,
                         VkImage image,
                         VkImageLayout oldImageLayout,
                         VkImageLayout newImageLayout,
-                        VkImageAspectFlags aspectMask=VK_IMAGE_ASPECT_COLOR_BIT)
+                        VkImageAspectFlags aspectMask)
 {
     VkImageSubresourceRange subresourceRange;
     subresourceRange.aspectMask     = aspectMask;
@@ -498,12 +498,18 @@ void VkApp::createScDescriptorSet()
 
     m_scDesc.setBindings(m_device, {
             {ScBindings::eMatrices, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
-                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR},
-            {ScBindings::eObjDescs, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT
+                VK_SHADER_STAGE_VERTEX_BIT 
+                | VK_SHADER_STAGE_RAYGEN_BIT_KHR 
                 | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
+            {ScBindings::eObjDescs, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+				VK_SHADER_STAGE_VERTEX_BIT
+		        | VK_SHADER_STAGE_FRAGMENT_BIT
+		        | VK_SHADER_STAGE_RAYGEN_BIT_KHR
+		        | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
             {ScBindings::eTextures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt,
-                VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR}
+                VK_SHADER_STAGE_FRAGMENT_BIT 
+                | VK_SHADER_STAGE_RAYGEN_BIT_KHR 
+                | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR}
         });
               
     m_scDesc.write(m_device, ScBindings::eMatrices, m_matrixBW.buffer);
@@ -698,7 +704,9 @@ void VkApp::rasterize()
             inst.transform,      // Object's instance transform.
             {0.5f, 2.5f, 3.0f},  // light position;  Should not be hard-coded here!
             inst.objIndex,       // instance Id
-            2.5f                 // light intensity;  Should not be hard-coded here!
+            2.5f,                 // light intensity;  Should not be hard-coded here!
+            0, // light type
+            BRDF_var
         };
         
         pcRaster.objIndex    = inst.objIndex;  // Telling which object is drawn

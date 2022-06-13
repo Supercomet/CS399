@@ -23,6 +23,7 @@
 #include "buffer_wrap.h"
 #include "image_wrap.h"
 #include "descriptor_wrap.h"
+#include "acceleration_wrap.h"
 
 //#include "raytracing_wrap.h"
 #define GLM_FORCE_RADIANS
@@ -176,6 +177,7 @@ public:
     DescriptorWrap m_scDesc{};
     void createScDescriptorSet();
 
+    int BRDF_var{};
     VkPipelineLayout            m_scanlinePipelineLayout{};
     VkPipeline                  m_scanlinePipeline{};
     void createScPipeline();
@@ -183,7 +185,10 @@ public:
     BufferWrap m_matrixBW{};  // Device-Host of the camera matrices
     void   createMatrixBuffer();
     
-    //RaytracingBuilderKHR m_rtBuilder{};
+    BufferWrap m_scratch1; //New
+    BufferWrap m_scratch2; //New
+
+    RaytracingBuilderKHR m_rtBuilder;
     float m_maxAnis = 0;
     PushConstantRay m_pcRay{};  // Push constant for ray tracer
     int m_num_atrous_iterations = 0;
@@ -195,12 +200,12 @@ public:
 
     // // Accelleration structure objects and functions
 
-    // //BlasInput objectToVkGeometryKHR(const ObjData& model);
-    // //void createBottomLevelAS(); void createTopLevelAS();
-    // void createRtAccelerationStructure();
+    BlasInput objectToVkGeometryKHR(const ObjData& model);
+    void createBottomLevelAS(); void createTopLevelAS();
+    void createRtAccelerationStructure();
 
-    // DescriptorWrap m_rtDesc{};
-    // void createRtDescriptorSet();
+    DescriptorWrap m_rtDesc{};
+    void createRtDescriptorSet();
 
     VkPipelineLayout                                  m_rtPipelineLayout{};
     VkPipeline                                        m_rtPipeline{};
@@ -224,7 +229,7 @@ public:
     void createDenoiseCompPipeline();
 
     // Run loop 
-    bool useRaytracer = true;
+    bool useRaytracer = false;
     void prepareFrame();
     void ResetRtAccumulation();
     
@@ -266,6 +271,13 @@ public:
     void transitionImageLayout(VkImage image, VkFormat format,
                                VkImageLayout oldLayout, VkImageLayout newLayout,
                                uint32_t mipLevels=1);
+
+    void imageLayoutBarrier(VkCommandBuffer cmdbuffer,
+        VkImage image,
+        VkImageLayout oldImageLayout,
+        VkImageLayout newImageLayout,
+        VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT);
+
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
     
     ImageWrap createTextureImage(std::string fileName);

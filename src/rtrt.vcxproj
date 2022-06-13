@@ -25,6 +25,7 @@
     <ClCompile Include="..\libs\imgui-master\imgui_draw.cpp" />
     <ClCompile Include="..\libs\imgui-master\imgui_tables.cpp" />
     <ClCompile Include="..\libs\imgui-master\imgui_widgets.cpp" />
+    <ClCompile Include="acceleration_wrap.cpp" />
     <ClCompile Include="app.cpp" />
     <ClCompile Include="descriptor_wrap.cpp" />
     <ClCompile Include="vkapp.cpp" />
@@ -32,6 +33,7 @@
     <ClCompile Include="extensions_vk.cpp" />
     <ClCompile Include="vkapp_fns.cpp" />
     <ClCompile Include="vkapp_loadModel.cpp" />
+    <ClCompile Include="vkapp_raytracing.cpp" />
     <ClCompile Include="vkapp_scanline.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -136,6 +138,7 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="acceleration_wrap.h" />
     <ClInclude Include="app.h" />
     <ClInclude Include="buffer_wrap.h" />
     <ClInclude Include="camera.h" />

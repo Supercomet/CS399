@@ -28,8 +28,14 @@ void drawGUI(VkApp& VK)
 
     // This needs a window if we want to dock it.
     ImGui::Begin("Debug");
+    ImGui::Checkbox("Raytrace", &VK.useRaytracer);
     ImGui::Text("Rate %.3f ms/frame (%.1f FPS)",
                 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::InputInt([=]() {
+        if (VK.BRDF_var < 0) return "Phong";
+        if (VK.BRDF_var > 0) return "Beckham";
+        if (VK.BRDF_var == 0) return "GGX";
+        }(), &VK.BRDF_var);
     ImGui::End();
 }
 #endif

@@ -63,23 +63,27 @@ struct PushConstantRaster
   uint  objIndex;
   float lightIntensity;
   int   lightType;
+  int	BRDF;
 };
 
 
 // Push constant structure for the ray tracer
 struct PushConstantRay
 {
-  int   randSeed;
-  int   randSeed2;
-  int   frame;
-  bool  historyView;
-  float jitter;
-  float numSteps;
-  bool  ExplicitLightRays;
-  float posTolerance;
-  float np_m;
-  float np_b;
-  bool  useHistory;
+	vec4 tempLightPos; // TEMPORARY – vec4(0.5f, 2.5f, 3.0f, 0.0);
+	vec4 tempLightInt; // TEMPORARY -- vec4(2.5, 2.5, 2.5, 0.0);
+	vec4 tempAmbient; // TEMPORARY – vec4(0.2);
+  //int   randSeed;
+  //int   randSeed2;
+  //int   frame;
+  //bool  historyView;
+  //float jitter;
+  //float numSteps;
+  //bool  ExplicitLightRays;
+  //float posTolerance;
+  //float np_m;
+  //float np_b;
+  //bool  useHistory;
 };
 
 struct Vertex  // Created by readModel; used in shaders
@@ -113,5 +117,15 @@ struct PushConstantDenoise
   bool placeholder2;
 
 };
+
+struct RayPayload
+{
+	bool hit; // Does the ray intersect anything or not?
+	vec3 hitPos; // The world coordinates of the hit point.
+	int instanceIndex; // Index of the object instance hit (we have only one, so =0)
+	int primitiveIndex; // Index of the hit triangle primitive within object
+	vec3 bc; // Barycentric coordinates of the hit point within triangle
+};
+
 
 #endif

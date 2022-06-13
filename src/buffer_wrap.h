@@ -3,8 +3,8 @@
 
 struct BufferWrap
 {
-    VkBuffer buffer;
-    VkDeviceMemory memory;
+    VkBuffer buffer{};
+    VkDeviceMemory memory{};
     
     void destroy(VkDevice& device)
     {
