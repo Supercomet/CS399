@@ -10,6 +10,10 @@
 #include "app.h"
 #include "extensions_vk.hpp"
 
+extern "C" {
+    _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+}
+
 // GLFW Callback functions
 static void onErrorCallback(int error, const char* description)
 {
@@ -29,6 +33,8 @@ void drawGUI(VkApp& VK)
     // This needs a window if we want to dock it.
     ImGui::Begin("Debug");
     ImGui::Checkbox("Raytrace", &VK.useRaytracer);
+    ImGui::SliderFloat("RussianRoulette", &VK.m_pcRay.rr,0.0f, 1.0f);
+    ImGui::Text("Iterations %d", VK.currIterations);
     ImGui::Text("Rate %.3f ms/frame (%.1f FPS)",
                 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
     ImGui::InputInt([=]() {
@@ -157,13 +163,14 @@ void App::updateCamera()
     float now = glfwGetTime();
     float dt = now-lastTime;
     lastTime = now;
-    
+
     float dist = 0.7*dt;
 
     float rad = 3.14159/180;
   
     myCamera.lmb   = glfwGetMouseButton(GLFW_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
         
+    auto oldCam = myCamera.eye;
     if (glfwGetKey(GLFW_window, GLFW_KEY_W) == GLFW_PRESS)
         myCamera.eye += dist*glm::vec3(sin(myCamera.spin*rad), 0.0, -cos(myCamera.spin*rad));
     if (glfwGetKey(GLFW_window, GLFW_KEY_S) == GLFW_PRESS)
@@ -176,6 +183,12 @@ void App::updateCamera()
         myCamera.eye += dist*glm::vec3(0,-1,0);
     if (glfwGetKey(GLFW_window, GLFW_KEY_C) == GLFW_PRESS || glfwGetKey(GLFW_window, GLFW_KEY_Q)== GLFW_PRESS)
         myCamera.eye += dist*glm::vec3(0,1,0);
+
+    if (oldCam != myCamera.eye)
+    {
+        myCamera.moved = true;
+    }
+
 }
 
 App::App(int argc, char** argv)

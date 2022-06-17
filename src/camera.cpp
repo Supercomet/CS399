@@ -33,10 +33,18 @@ void Camera::mouseMove(const float x, const float y)
 {
     float dx = x-posx;
     float dy = y-posy;
+    float oldSpin = spin;
+    float oldTilt = tilt;
+
     spin += dx/3;
     tilt += dy/3;
     posx = x;
     posy = y;
+    
+    if (spin != oldSpin || tilt != oldTilt)
+    {
+        this->moved = true;
+    }
 }
 
 void Camera::setMousePosition(const float x, const float y)

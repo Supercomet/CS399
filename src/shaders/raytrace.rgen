@@ -31,6 +31,59 @@ layout(buffer_reference, scalar) buffer MatIndices {int i[]; }; // Material ID f
 
 float pi = 3.14159;
 
+// Generate a random unsigned int from two unsigned int values, using 16 pairs
+// of rounds of the Tiny Encryption Algorithm. See Zafar, Olano, and Curtis,
+// "GPU Random Numbers via the Tiny Encryption Algorithm"
+uint tea(uint val0, uint val1)
+{
+  uint v0 = val0;
+  uint v1 = val1;
+  uint s0 = 0;
+
+  for(uint n = 0; n < 16; n++)
+  {
+    s0 += 0x9e3779b9;
+    v0 += ((v1 << 4) + 0xa341316c) ^ (v1 + s0) ^ ((v1 >> 5) + 0xc8013ea4);
+    v1 += ((v0 << 4) + 0xad90777d) ^ (v0 + s0) ^ ((v0 >> 5) + 0x7e95761e);
+  }
+
+  return v0;
+}
+
+// Generate a random unsigned int in [0, 2^24) given the previous RNG state
+// using the Numerical Recipes linear congruential generator
+uint lcg(inout uint prev)
+{
+    uint LCG_A = 1664525u;
+    uint LCG_C = 1013904223u;
+    prev       = (LCG_A * prev + LCG_C);
+    return prev & 0x00FFFFFF;
+}
+
+// Generate a random float in [0, 1) given the previous RNG state
+float rnd(inout uint prev)
+{
+    return (float(lcg(prev)) / float(0x01000000));
+}
+
+// Returns a vector around A, at a "polar" angle cos=cTheta, and an "equatorial" angle Phi
+vec3 SampleLobe(vec3 A, float cTheta, float Phi)
+{
+    float sTheta = sqrt(1 - cTheta*cTheta); // Sine of Theta
+    vec3 K = vec3(sTheta*cos(Phi), sTheta*sin(Phi), cTheta); // Vector centered on Z instead of A
+
+
+    // Form coordinate frame around A
+    if (abs(A.z-1.0) < 1e-3) return K;
+    if (abs(A.z+1.0) < 1e-3) return vec3(K[0], -K[1], -K[2]);
+    vec3 B = normalize(vec3(-A[1], A[0], 0.0)); // Z x A
+    vec3 C = cross(A,B);
+    
+    // Rotate Z to A, taking K along with
+    return K[0]*B + K[1]*C + K[2]*A;
+}
+
+
 float approx_tan(vec3 V, vec3 N)
 {
     float VN = dot(V,N);
@@ -39,7 +92,6 @@ float approx_tan(vec3 V, vec3 N)
 float G_GGX(vec3 V, vec3 M , float a)
 {
     float alphaG = sqrt(2.0/ (a+2));
-
     float vTan = approx_tan(V,M);
 
     return 2.0/ (1.0+ sqrt(1+alphaG*alphaG*vTan*vTan));
@@ -64,8 +116,35 @@ vec3 GGXBRDF(vec3 L ,vec3 V , vec3 H , vec3 N , float alpha , vec3 Kd , vec3 Ks)
     return Kd/pi + D*F/4.0 * G;
 }
 
+// returns full  NL*(Kd/pi+F*G*D/den);  or diffuse only NL*(Kd/pi) lighting calc.
+vec3 EvalBrdf(vec3 N, vec3 L, vec3 V, Material mat) 
+{
+    const float alpha = mat.shininess;
+    float NL = max(dot(N,L),0.0);
+    vec3 H = normalize(L+V);
+    vec3 Kd = mat.diffuse;
+    vec3 Ks = mat.specular;
+    return NL * GGXBRDF(L,V,H,N,alpha,Kd,Ks);
+}
+
+// Sample a cosine log around the N direction;
+// Later, get smart about specular directions.
+vec3 SampleBrdf(inout uint seed, in vec3 N) 
+{
+    return SampleLobe(N, sqrt(rnd(seed)), 2*pi *rnd(seed));
+}
+
+// The probability distribution of the SampleBrdf function.
+float PdfBrdf(vec3 N, vec3 Wi) 
+{
+    return dot(N, Wi)/pi;
+}
+
+
 void main() 
 {
+    payload.seed = tea(gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x + gl_LaunchIDEXT.x, pcRay.frameSeed);
+
     // This invocation is for a pixel indicated by gl_LaunchIDEXT
     const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
     vec2 pixelNDC = pixelCenter/vec2(gl_LaunchSizeEXT.xy)*2.0 - 1.0;
@@ -74,80 +153,104 @@ void main()
     vec4 pixelH = mats.viewInverse * mats.projInverse * vec4(pixelNDC.x, pixelNDC.y, 1, 1);
     vec3 pixelW = pixelH.xyz/pixelH.w;
     
-    vec3 rayOrigin    = eyeW;
-    vec3 rayDirection = normalize(pixelW - eyeW);
+    vec3 rayO    = eyeW;
+    vec3 rayD = normalize(pixelW - eyeW);
+    payload.hit = false;
 
-    // Fire the ray;  hit or miss shaders will be invoked, passing results back in the payload
-    traceRayEXT(topLevelAS,           // acceleration structure
-                gl_RayFlagsOpaqueEXT, // rayFlags
-                0xFF,                 // cullMask
-                0,                    // sbtRecordOffset
-                0,                    // sbtRecordStride
-                0,                    // missIndex
-                rayOrigin,            // ray origin
-                0.001,                // ray min range
-                rayDirection,         // ray direction
-                10000.0,              // ray max range
-                0                     // payload (location = 0)
-                );
+    // @@  Most of the ray casting code goes in a loop:
+    // Accumulate color in a vec3 C initialized to (0,0,0)
+    // Accumulate product of f/p weights in vec3 W initialized to (1,1,1)
+    vec3 C = vec3(0.0,0.0,0.0);
+    vec3 W = vec3(1.0,1.0,1.0);
 
-    // If nothing was hit, output background color.
-    if (!payload.hit) {
-        imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(0.0));
-        return; }
 
-    // If something was hit, find the object data.
-    // Object data (containg 4 device addresses)
-    ObjDesc    objResources = objDesc.i[payload.instanceIndex];
+    for (int i=0; i<pcRay.depth;  i++) {
+        // Fire the ray;  hit or miss shaders will be invoked, passing results back in the payload
+        traceRayEXT(topLevelAS,           // acceleration structure
+                    gl_RayFlagsOpaqueEXT, // rayFlags
+                    0xFF,                 // cullMask
+                    0,                    // sbtRecordOffset
+                    0,                    // sbtRecordStride
+                    0,                    // missIndex
+                    rayO,                 // ray origin
+                    0.001,                // ray min range
+                    rayD,                 // ray direction
+                    10000.0,              // ray max range
+                    0                     // payload (location = 0)
+                    );
+
+        // If nothing was hit, output background color.
+        if (!payload.hit) {
+            break; }
+
+        // If something was hit, find the object data.
+        // Object data (containing 4 device addresses)
+        ObjDesc    objResources = objDesc.i[payload.instanceIndex];
     
-    // Dereference the object's 4 device addresses
-    Vertices   vertices    = Vertices(objResources.vertexAddress);
-    Indices    indices     = Indices(objResources.indexAddress);
-    Materials  materials   = Materials(objResources.materialAddress);
-    MatIndices matIndices  = MatIndices(objResources.materialIndexAddress);
+        // Dereference the object's 4 device addresses
+        Vertices   vertices    = Vertices(objResources.vertexAddress);
+        Indices    indices     = Indices(objResources.indexAddress);
+        Materials  materials   = Materials(objResources.materialAddress);
+        MatIndices matIndices  = MatIndices(objResources.materialIndexAddress);
   
-    // Use gl_PrimitiveID to access the triangle's vertices and material
-    ivec3 ind    = indices.i[payload.primitiveIndex]; // The triangle hit
-    int matIdx   = matIndices.i[payload.primitiveIndex]; // The triangles material index
-    Material mat = materials.m[matIdx]; // The triangles material
+        // Use gl_PrimitiveID to access the triangle's vertices and material
+        ivec3 ind    = indices.i[payload.primitiveIndex]; // The triangle hit
+        int matIdx   = matIndices.i[payload.primitiveIndex]; // The triangles material index
+        Material mat = materials.m[matIdx]; // The triangles material
 
-    // Vertex of the triangle (Vertex has pos, nrm, tex)
-    Vertex v0 = vertices.v[ind.x];
-    Vertex v1 = vertices.v[ind.y];
-    Vertex v2 = vertices.v[ind.z];
+        // If material indicates triangle is a light, pass the light's
+        // emission through all BRDFs to output to a  pixel.
+        
+        // @@ A previous instruction to scale emission by 5 should be
+        // ignored.  Scale it as necessary to produce a comfortable
+        // image. Better yet, include a GUI slider to adjust exposure.
+        if (dot(mat.emission,mat.emission) > 0.0) {
+            C += mat.emission*W; 
+            break; }
 
-    // Computing the normal and tex coord at hit position
-    const vec3 bc = payload.bc; // The barycentric coordinates of the hit point
-    const vec3 nrm  = bc.x*v0.nrm      + bc.y*v1.nrm      + bc.z*v2.nrm;
-    const vec2 uv =  bc.x*v0.texCoord + bc.y*v1.texCoord + bc.z*v2.texCoord;
+        // Vertex of the triangle (Vertex has pos, nrm, tex)
+        Vertex v0 = vertices.v[ind.x];
+        Vertex v1 = vertices.v[ind.y];
+        Vertex v2 = vertices.v[ind.z];
 
-    // If the material has a texture, read diffuse color from it.
-    if (mat.textureId >= 0) {
-        uint txtId = objResources.txtOffset + mat.textureId;
-        mat.diffuse = texture(textureSamplers[(txtId)], uv).xyz;
+        // Computing the normal and tex coord at hit position
+        const vec3 bc = payload.bc; // The barycentric coordinates of the hit point
+        const vec3 nrm  = bc.x*v0.nrm      + bc.y*v1.nrm      + bc.z*v2.nrm;
+        const vec2 uv =  bc.x*v0.texCoord + bc.y*v1.texCoord + bc.z*v2.texCoord;
+
+        // If the material has a texture, read diffuse color from it.
+        if (mat.textureId >= 0) {
+            uint txtId = objResources.txtOffset + mat.textureId;
+            mat.diffuse = texture(textureSamplers[(txtId)], uv).xyz; }
+
+        // From the current hit point, setup N,L,V for BRDF calculation
+        vec3 P = payload.hitPos;  // Current hit point
+        vec3 N = normalize(nrm);  // Its normal
+        vec3 Wi = SampleBrdf(payload.seed, N);
+        vec3 Wo = -rayD;
+        
+        // Color via a BRDF calculation
+        vec3 f = EvalBrdf(N, Wi, Wo, mat);
+        float p = PdfBrdf(N,Wi)*pcRay.rr;
+        if (p != 0.0)
+            W *= f/p;           // Monte-Carlo
+
+        rayO = P;
+        rayD = Wi;
+        // @@ Step forward: Set the next ray's origin and direction to
+        // current point P, and the next sample direction Wi.
     }
 
-    // If material indicates triangle is a light, output its emission.
-    if (dot(mat.emission,mat.emission) > 0.0) {
-        imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(mat.emission,1.0));
-        return; }
-
-    // Color via a BRDF calculation
-    // @@ Do your lighting calculation here.
-    //   Normal N from nrm above 
-    //   Light direction L from pcRay.tempLightPos - payload.hitPos
-    //   View direction V is the reverse of rayDirection
-    //   Light values from pcRay
-    //   Material properties from mat (above), possibly modified by a texture
-    vec3 N = normalize(nrm);
-    vec3 L = normalize(vec3(pcRay.tempLightPos) - payload.hitPos);
-    float NL = max(dot(N,L),0.0);
-    vec3 V = normalize(-rayDirection);
-    vec3 H = normalize(L+V);
-    vec3 C = vec3(1.0, 0.5, 0.0);
-    C = vec3(pcRay.tempLightInt)*NL*GGXBRDF(L,V,H,N,mat.shininess,mat.diffuse,mat.specular);
-   
-
-    imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), vec4(C, 1.0));
-
+    // @@Read, accumulate and write the value C into the proper image pixel
+    // (oldAve,oldN) = imageLoad(colCurr, ivec2(gl_LaunchIDEXT.xy));
+    vec4 oldAve = imageLoad(colCurr,ivec2(gl_LaunchIDEXT.xy));
+    float newN = oldAve.w + 1.0;
+    vec4 newAve = vec4(oldAve.rgb + (C-oldAve.rgb)/ newN, newN );
+    if(pcRay.moved == int(true)){
+     newAve = vec4(0.0,0.0,0.0,0.0);
+    }
+    // @@ If the camera has moved, restart accumulation by setting (oldAve,oldN) to (0,0,0, 0)
+    imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), newAve);
+    // Recognize camera motion at "spin +=" in camera.cpp or "myCamera.eye +=" in app.cpp
+    // Communicate the camera modified state via a m_pcRay variable.
 }

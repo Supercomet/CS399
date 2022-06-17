@@ -24,6 +24,8 @@ class Camera
     bool shift=false;
     bool ctrl=false;
     bool alt=false;
+    
+    bool moved = false;
 
     float posx = 0.0;
     float posy = 0.0;

@@ -75,7 +75,7 @@ void VkApp::myloadModel(const std::string& filename, glm::mat4 transform)
         Material& mat = meshdata.materials[i];
         if (glm::dot(mat.emission, mat.emission) > 0.0f)
         {
-            mat.emission *= 5.0f;
+            //mat.emission *= 5.0f;
             lights.emplace_back(i);
         }
     }

@@ -190,6 +190,7 @@ public:
 
     RaytracingBuilderKHR m_rtBuilder;
     float m_maxAnis = 0;
+    size_t currIterations{ 0 };
     PushConstantRay m_pcRay{};  // Push constant for ray tracer
     int m_num_atrous_iterations = 0;
     PushConstantDenoise m_pcDenoise{};
