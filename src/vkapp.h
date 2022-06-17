@@ -229,7 +229,7 @@ public:
     void createDenoiseCompPipeline();
 
     // Run loop 
-    bool useRaytracer = false;
+    bool useRaytracer = true;
     void prepareFrame();
     void ResetRtAccumulation();
     
