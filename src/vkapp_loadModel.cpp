@@ -69,18 +69,41 @@ void VkApp::myloadModel(const std::string& filename, glm::mat4 transform)
     printf("textures: %lld\n", meshdata.textures.size());
     std::cout << std::endl;
 
-    std::vector<uint32_t> lights;
     for (size_t i = 0; i < meshdata.materials.size(); ++i)
     {
         Material& mat = meshdata.materials[i];
         if (glm::dot(mat.emission, mat.emission) > 0.0f)
         {
+            for (size_t x = 0; x < meshdata.matIndx.size();++x)
+            {
+                if (i == meshdata.matIndx[x])
+                {
+                    Emitter e;
+
+                    size_t id_1 = meshdata.indicies[3*x+0];
+                    size_t id_2 = meshdata.indicies[3*x+1];
+                    size_t id_3 = meshdata.indicies[3*x+2];
+
+                    e.v0 = meshdata.vertices[id_1].pos;
+                    e.v1 = meshdata.vertices[id_2].pos;
+                    e.v2 = meshdata.vertices[id_3].pos;
+
+                    e.normal = (meshdata.vertices[id_1].nrm+
+                                meshdata.vertices[id_2].nrm+
+                                meshdata.vertices[id_3].nrm)/3.0f;
+
+                    e.index = meshdata.matIndx[x];
+                    e.emission = mat.emission;
+
+                    auto crs =glm::cross(e.v1 - e.v0, e.v2 - e.v0);
+                    e.area = (crs.x + crs.y + crs.z)/2;
+
+                    m_emitterList.emplace_back(e);
+                }
+            }
             //mat.emission *= 5.0f;
-            lights.emplace_back(i);
+            
         }
-    }
-    for (size_t i = 0; i < meshdata.vertices.size(); i++)
-    {
     }
     
     // @@ Go though the list of meshdata.materials, find the ones that
@@ -145,6 +168,24 @@ void VkApp::myloadModel(const std::string& filename, glm::mat4 transform)
 
     // @@ At shutdown:
     //   Destroy each buffer  in the m_objDesc list with:   objDesc.destroy(m_device);
+}
+
+void VkApp::createLightbuffer()
+{
+    VkCommandBuffer cmdbuf = createTempCmdBuffer();
+    //m_lightBuffer = createStagedBufferWrap(cmdbuf,sizeof(Emitter) * m_emitterList.size(),m_emitterList.data(),
+    //    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    //    | VK_BUFFER_USAGE_TRANSFER_DST_BIT
+    //);
+
+    m_lightBuffer = createBufferWrap(sizeof(Emitter) * m_emitterList.size(), 
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_DST_BIT
+        , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    
+    vkCmdUpdateBuffer(cmdbuf, m_lightBuffer.buffer, 0,
+        m_emitterList.size() * sizeof(Emitter), m_emitterList.data());
+    
+    submitTempCmdBuffer(cmdbuf);
 }
 
 void ModelData::readAssimpFile(const std::string& path, const mat4& M)

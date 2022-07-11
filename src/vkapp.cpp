@@ -56,6 +56,8 @@ VkApp::VkApp(App* _app) : app(_app)
     
     myloadModel("models/living_room.obj", glm::mat4());
 
+    createLightbuffer();
+
     createMatrixBuffer();
     createObjDescriptionBuffer();
     createScanlineRenderPass();

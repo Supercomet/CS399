@@ -17,6 +17,7 @@ layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 // Ray tracing descriptor set: 0:acceleration structure, and 1: color output image
 layout(set=0, binding=0) uniform accelerationStructureEXT topLevelAS;
 layout(set=0, binding=1, rgba32f) uniform image2D colCurr; // Output image: m_rtColCurrBuffer
+layout(set=0, binding=2, scalar) buffer buffer_emitter{Emitter list[];} emitter;
 
 // Object model descriptor set: 0: matrices, 1:object buffer addresses, 2: texture list
 layout(set=1, binding=0) uniform _MatrixUniforms { MatrixUniforms mats; };
@@ -140,6 +141,41 @@ float PdfBrdf(vec3 N, vec3 Wi)
     return dot(N, Wi)/pi;
 }
 
+Emitter SampleLight(inout uint seed)
+{
+     uint i = lcg(seed) % emitter.list.length();
+     return emitter.list[i];
+}
+
+vec3 SampleTriangle(vec3 A, vec3 B ,vec3 C, inout uint seed)
+{
+    float b1 = rnd(seed);
+    float b2 = rnd(seed);
+    float b0 = 1-b1-b2;
+    if(b0 < 0)
+    {
+        b1  = 1-b1;
+        b2 = 1-b2;
+        b0 = 1 - b1 -b2;
+    }
+    return b0*A + b1*B +b2*C;
+}
+
+float PdfLight(Emitter L)
+{
+    return 1.0/(L.area * emitter.list.length());
+}
+
+float GeometryFactor(vec3 Pa, vec3 Na, vec3 Pb, vec3 Nb)
+{
+    vec3 D = Pa-Pb;
+    return abs( dot(D,Na) * dot(D,Nb) / pow(dot(D,D),2) );
+}
+
+vec3 EvalLight(Emitter L)
+{
+    return L.emission;
+}
 
 void main() 
 {
@@ -205,8 +241,40 @@ void main()
         // ignored.  Scale it as necessary to produce a comfortable
         // image. Better yet, include a GUI slider to adjust exposure.
         if (dot(mat.emission,mat.emission) > 0.0) {
-            C += mat.emission*W; 
+            C +=  mat.emission*W; 
             break; }
+
+        Emitter lightInfo = SampleLight(payload.seed);
+        vec3 lightPoint = SampleTriangle(lightInfo.v0,lightInfo.v1,lightInfo.v2, payload.seed);
+        vec3 Wi = normalize(lightPoint - payload.hitPos);
+        float dist = length(lightPoint- payload.hitPos);
+        payload.occluded = true;
+
+        traceRayEXT(topLevelAS,
+            gl_RayFlagsOpaqueEXT
+            |gl_RayFlagsTerminateOnFirstHitEXT
+            |gl_RayFlagsSkipClosestHitShaderEXT, // ray flags
+            0xFF, // cull mask
+            0, // sbtRecordoffset
+            0, // sbtRecordStride
+            1, // sbtmissindex
+            payload.hitPos, // ray origin
+            0.001, // ray min range
+            Wi,         // ray direction
+            dist-0.001, // ray max range
+            0           // payload location
+            );
+
+        if(!payload.occluded)
+        {
+            const vec3 nrm  = lightInfo.normal;
+            vec3 N = normalize(nrm);  // Its normal
+            vec3 Wo = -rayD;
+            vec3 f = EvalBrdf(N, Wi, Wo, mat);
+            float p = PdfLight(lightInfo)/GeometryFactor(payload.hitPos,
+            N,lightPoint,lightInfo.normal);
+            C+= 0.5 * W *f/p * EvalLight(lightInfo);
+        }
 
         // Vertex of the triangle (Vertex has pos, nrm, tex)
         Vertex v0 = vertices.v[ind.x];
@@ -223,10 +291,11 @@ void main()
             uint txtId = objResources.txtOffset + mat.textureId;
             mat.diffuse = texture(textureSamplers[(txtId)], uv).xyz; }
 
+
         // From the current hit point, setup N,L,V for BRDF calculation
         vec3 P = payload.hitPos;  // Current hit point
         vec3 N = normalize(nrm);  // Its normal
-        vec3 Wi = SampleBrdf(payload.seed, N);
+         Wi = SampleBrdf(payload.seed, N);
         vec3 Wo = -rayD;
         
         // Color via a BRDF calculation

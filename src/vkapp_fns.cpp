@@ -62,6 +62,8 @@ void VkApp::destroyAllVulkanResources()
          m_objText[i].destroy(m_device);
      }
 
+     m_lightBuffer.destroy(m_device);
+
      for (size_t i = 0; i < m_objData.size(); i++)
      {
 		 ObjData& obj = m_objData[i];
@@ -69,8 +71,8 @@ void VkApp::destroyAllVulkanResources()
 		 obj.indexBuffer.destroy(m_device);
 		 obj.matColorBuffer.destroy(m_device);
 		 obj.matIndexBuffer.destroy(m_device);
-
      }
+
 
      for (size_t i = 0; i < m_objDesc.size(); i++)
      {

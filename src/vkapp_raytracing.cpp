@@ -54,15 +54,19 @@ void VkApp::initRayTracing()
 void VkApp::createRtDescriptorSet()
 {
     m_rtDesc.setBindings(m_device, {
-            {0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1,  // TLAS
+            {RtBindings::eTlas, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1,  // TLAS
              VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
-            {1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,  // Output image
-             VK_SHADER_STAGE_RAYGEN_BIT_KHR}
+            {RtBindings::eOutImage, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,  // Output image
+             VK_SHADER_STAGE_RAYGEN_BIT_KHR},
+            {RtBindings::eLights, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+            VK_SHADER_STAGE_RAYGEN_BIT_KHR 
+            | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT},
         });
     
 
-    m_rtDesc.write(m_device, 0, m_rtBuilder.getAccelerationStructure());
-    m_rtDesc.write(m_device, 1, m_rtColCurrBuffer.Descriptor());
+    m_rtDesc.write(m_device, RtBindings::eTlas, m_rtBuilder.getAccelerationStructure());
+    m_rtDesc.write(m_device, RtBindings::eOutImage, m_rtColCurrBuffer.Descriptor());
+    m_rtDesc.write(m_device, RtBindings::eLights, m_lightBuffer.buffer);
 }
 
 // Pipeline for the ray tracer: all shaders, raygen, chit, miss
@@ -104,6 +108,15 @@ void VkApp::createRtPipeline()
     stage.module = createShaderModule(loadFile("spv/raytrace.rmiss.spv"));
     stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
     stages.push_back(stage);
+
+    group.type          = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+    group.generalShader = stages.size()-1;    // Index of miss shader
+    groups.push_back(group);
+    group.generalShader    = VK_SHADER_UNUSED_KHR;
+
+    stage.module = createShaderModule(loadFile("spv/raytraceShadow.rmiss.spv"));
+    stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
+    stages.push_back(stage);
     
     group.type          = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
     group.generalShader = stages.size()-1;    // Index of miss shader
@@ -113,7 +126,7 @@ void VkApp::createRtPipeline()
     // Closest hit shader stage and group appended to stages and groups lists
     stage.module = createShaderModule(loadFile("spv/raytrace.rchit.spv"));
     stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    stages.push_back(stage);
+    stages.push_back(stage);   
 
     group.type             = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
     group.closestHitShader = stages.size()-1;   // Index of hit shader
@@ -172,7 +185,7 @@ constexpr integral align_up(integral x, size_t a) noexcept
 
 void VkApp::createRtShaderBindingTable()
 {
-    uint32_t missCount{1};
+    uint32_t missCount{2};
     uint32_t hitCount{1};
     auto     handleCount = 1 + missCount + hitCount;
 

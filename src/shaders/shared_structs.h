@@ -30,6 +30,7 @@ END_ENUM();
 START_ENUM(RtBindings)
   eTlas     = 0,  // Top-level acceleration structure
   eOutImage = 1,   // Ray tracer output image
+  eLights = 2,   // Access to lights
   eColorHistoryImage = 2
 END_ENUM();
 // clang-format on
@@ -129,6 +130,16 @@ struct RayPayload
 	int primitiveIndex; // Index of the hit triangle primitive within object
 	vec3 bc; // Barycentric coordinates of the hit point within triangle
 	uint seed; // random seed
+	bool occluded;
+};
+
+struct Emitter
+{
+	vec3 v0, v1, v2; // Vertices of light emitting triangle
+	vec3 emission; // Its emission
+	vec3 normal; // its normal
+	float area; // Its triangle area.
+	uint index; // Not needed, but used for verification
 };
 
 
