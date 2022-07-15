@@ -33,6 +33,10 @@ void drawGUI(VkApp& VK)
     // This needs a window if we want to dock it.
     ImGui::Begin("Debug");
     ImGui::Checkbox("Raytrace", &VK.useRaytracer);
+    ImGui::Checkbox("Explicit Lights", &VK.useExplicit);
+    ImGui::Checkbox("history ", &VK.useHistory);
+    ImGui::SliderFloat("N threshold", &VK.f_nThreshold, 0.0f,1.0f);
+    ImGui::SliderFloat("D threshold", &VK.f_dThreshold, 0.0f,1.0f);
     ImGui::SliderFloat("RussianRoulette", &VK.m_pcRay.rr,0.0f, 1.0f);
     ImGui::Text("Iterations %d", VK.currIterations);
     ImGui::Text("Rate %.3f ms/frame (%.1f FPS)",

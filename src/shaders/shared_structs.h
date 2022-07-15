@@ -12,6 +12,12 @@ using mat4 = glm::mat4;
 using uint = unsigned int;
 #endif
 
+#ifdef __cplusplus
+#define BOOL(name) bool name; bool pad##name[3] 
+#else
+#define BOOL(name) bool name
+#endif
+
 // clang-format off
 #ifdef __cplusplus // Descriptor binding helper for C++ and GLSL
  #define START_ENUM(a) enum a {
@@ -29,9 +35,13 @@ END_ENUM();
 
 START_ENUM(RtBindings)
   eTlas     = 0,  // Top-level acceleration structure
-  eOutImage = 1,   // Ray tracer output image
+  eOutCurrImage = 1,   // Ray tracer output image
   eLights = 2,   // Access to lights
-  eColorHistoryImage = 2
+  eColorHistoryImage = 2,
+  eOutPrevImage = 3,
+  eOutCurrNd = 4,
+  eOutPrevNd = 5,
+  eOutCurrKd = 6
 END_ENUM();
 // clang-format on
 
@@ -71,23 +81,17 @@ struct PushConstantRaster
 // Push constant structure for the ray tracer
 struct PushConstantRay
 {
-	//vec4 tempLightPos; // TEMPORARY – vec4(0.5f, 2.5f, 3.0f, 0.0);
-	//vec4 tempLightInt; // TEMPORARY -- vec4(2.5, 2.5, 2.5, 0.0);
-	//vec4 tempAmbient; // TEMPORARY – vec4(0.2);
   int   frameSeed;
   int   depth;
   float rr;
   int   moved;
-  int   randSeed2;
   int   frame;
-  bool  historyView;
-  float jitter;
-  float numSteps;
-  bool  ExplicitLightRays;
+  BOOL(historyView);
+  BOOL(ExplicitLightRays);
   float posTolerance;
-  float np_m;
-  float np_b;
-  bool  useHistory;
+  float n_threshold;
+  float d_threshold;
+  BOOL(useHistory);
 };
 
 struct Vertex  // Created by readModel; used in shaders
@@ -131,6 +135,7 @@ struct RayPayload
 	vec3 bc; // Barycentric coordinates of the hit point within triangle
 	uint seed; // random seed
 	bool occluded;
+	float depth;
 };
 
 struct Emitter

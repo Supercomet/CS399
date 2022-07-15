@@ -232,6 +232,29 @@ void VkApp::generateMipmaps(VkImage image, VkFormat imageFormat,
     submitTempCmdBuffer(commandBuffer);
 }
 
+void VkApp::CmdCopyImage(ImageWrap& src, ImageWrap& dst)
+{
+    VkImageCopy imageCopyRegion{};
+    imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageCopyRegion.srcSubresource.layerCount = 1;
+    imageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageCopyRegion.dstSubresource.layerCount = 1;
+    imageCopyRegion.extent.width = windowSize.width;
+    imageCopyRegion.extent.height = windowSize.height;
+    imageCopyRegion.extent.depth = 1;
+
+    imageLayoutBarrier(m_commandBuffer, src.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    imageLayoutBarrier(m_commandBuffer, dst.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    vkCmdCopyImage(m_commandBuffer, src.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                dst.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                1, &imageCopyRegion);
+
+    imageLayoutBarrier(m_commandBuffer, src.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+    imageLayoutBarrier(m_commandBuffer, dst.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+
+}
+
 BufferWrap VkApp::createStagedBufferWrap(const VkCommandBuffer& cmdBuf,
                                          const VkDeviceSize&    size,
                                          const void*            data,

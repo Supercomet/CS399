@@ -156,8 +156,15 @@ public:
     void createScBuffer();
     
     ImageWrap m_rtColCurrBuffer{}; 
+    ImageWrap m_rtColPrevBuffer{}; 
+    
+    ImageWrap m_rtNdCurrBuffer{};
+    ImageWrap m_rtNdPrevBuffer{};
+
+    ImageWrap m_rtKdCurrBuffer{};
+    //ImageWrap m_rtKdPrevBuffer{}; not needed
+
     ImageWrap m_rtColHistBuffer{};
-    ImageWrap m_rtPosCurrBuffer{};
     ImageWrap m_rtPosHistBuffer{};
     void createRtBuffers();
     
@@ -235,6 +242,11 @@ public:
 
     // Run loop 
     bool useRaytracer = true;
+    bool useExplicit = true;
+    bool useHistory = true;
+    bool prevUseHistory = true;
+    float f_nThreshold =0.95f;
+    float f_dThreshold = 0.15f;
     void prepareFrame();
     void ResetRtAccumulation();
     
@@ -285,6 +297,8 @@ public:
 
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
     
+    void CmdCopyImage(ImageWrap& src, ImageWrap& dst);
+
     ImageWrap createTextureImage(std::string fileName);
     ImageWrap createBufferImage(VkExtent2D& size);
     

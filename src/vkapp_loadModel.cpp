@@ -88,15 +88,13 @@ void VkApp::myloadModel(const std::string& filename, glm::mat4 transform)
                     e.v1 = meshdata.vertices[id_2].pos;
                     e.v2 = meshdata.vertices[id_3].pos;
 
-                    e.normal = (meshdata.vertices[id_1].nrm+
-                                meshdata.vertices[id_2].nrm+
-                                meshdata.vertices[id_3].nrm)/3.0f;
+                    auto crs =glm::cross(e.v1 - e.v0, e.v2 - e.v0);
+                    e.normal = glm::normalize(crs);
 
                     e.index = meshdata.matIndx[x];
                     e.emission = mat.emission;
 
-                    auto crs =glm::cross(e.v1 - e.v0, e.v2 - e.v0);
-                    e.area = (crs.x + crs.y + crs.z)/2;
+                    e.area = std::abs((crs.x + crs.y + crs.z)/2);
 
                     m_emitterList.emplace_back(e);
                 }

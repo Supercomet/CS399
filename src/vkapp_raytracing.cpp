@@ -24,6 +24,26 @@ void VkApp::createRtBuffers()
                           VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_GENERAL, 1);
 
+    m_rtColPrevBuffer = createBufferImage(windowSize);
+    transitionImageLayout(m_rtColPrevBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_GENERAL, 1);
+
+    m_rtNdCurrBuffer = createBufferImage(windowSize);
+    transitionImageLayout(m_rtNdCurrBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_GENERAL, 1);
+
+    m_rtNdPrevBuffer = createBufferImage(windowSize);
+    transitionImageLayout(m_rtNdPrevBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_GENERAL, 1);
+
+    m_rtKdCurrBuffer = createBufferImage(windowSize);
+    transitionImageLayout(m_rtKdCurrBuffer.image, VK_FORMAT_R32G32B32A32_SFLOAT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_GENERAL, 1);
+
 }
 
 // Initialize ray tracing
@@ -53,20 +73,34 @@ void VkApp::initRayTracing()
 //
 void VkApp::createRtDescriptorSet()
 {
+
     m_rtDesc.setBindings(m_device, {
             {RtBindings::eTlas, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1,  // TLAS
              VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
-            {RtBindings::eOutImage, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,  // Output image
+            {RtBindings::eOutCurrImage, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,  // Output 4 images
              VK_SHADER_STAGE_RAYGEN_BIT_KHR},
             {RtBindings::eLights, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
             VK_SHADER_STAGE_RAYGEN_BIT_KHR 
             | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT},
+
+            {RtBindings::eOutPrevImage, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,
+            VK_SHADER_STAGE_RAYGEN_BIT_KHR},
+            {RtBindings::eOutCurrNd, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,
+            VK_SHADER_STAGE_RAYGEN_BIT_KHR},
+            {RtBindings::eOutPrevNd, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,
+            VK_SHADER_STAGE_RAYGEN_BIT_KHR},
+            {RtBindings::eOutCurrKd, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,
+            VK_SHADER_STAGE_RAYGEN_BIT_KHR},
         });
     
 
     m_rtDesc.write(m_device, RtBindings::eTlas, m_rtBuilder.getAccelerationStructure());
-    m_rtDesc.write(m_device, RtBindings::eOutImage, m_rtColCurrBuffer.Descriptor());
+    m_rtDesc.write(m_device, RtBindings::eOutCurrImage, m_rtColCurrBuffer.Descriptor());
     m_rtDesc.write(m_device, RtBindings::eLights, m_lightBuffer.buffer);
+    m_rtDesc.write(m_device, RtBindings::eOutPrevImage, m_rtColPrevBuffer.Descriptor());
+    m_rtDesc.write(m_device, RtBindings::eOutCurrNd, m_rtNdCurrBuffer.Descriptor());
+    m_rtDesc.write(m_device, RtBindings::eOutPrevNd, m_rtNdPrevBuffer.Descriptor());
+    m_rtDesc.write(m_device, RtBindings::eOutCurrKd, m_rtKdCurrBuffer.Descriptor());
 }
 
 // Pipeline for the ray tracer: all shaders, raygen, chit, miss
@@ -281,21 +315,28 @@ void VkApp::createRtShaderBindingTable()
 
 void VkApp::raytrace()
 {
-    // The (temporary) push constants for the ray tracing pipeline.
-    // m_pcRay.tempLightPos = vec4(0.5f, 2.5f, 3.0f, 0.0);
-    // m_pcRay.tempLightInt = vec4(2.5, 2.5, 2.5, 0.0);
-    // m_pcRay.tempAmbient = vec4(0.2);
-   
-    
+
     m_pcRay.moved = app->myCamera.moved;
+
+    if (useHistory) m_pcRay.moved = false;
+    if (prevUseHistory != useHistory)
+    {
+        // we just changed lets refresh
+        m_pcRay.moved = true;
+        prevUseHistory = useHistory;
+    }
+
     if (m_pcRay.moved)
     {
         currIterations = 0;
     }
-    ++currIterations;
     app->myCamera.moved = false;
+    ++currIterations;
     m_pcRay.frameSeed = rand() % 32768;
     m_pcRay.depth=1;
+    m_pcRay.ExplicitLightRays = useExplicit;
+    m_pcRay.n_threshold = f_nThreshold;
+    m_pcRay.d_threshold = f_dThreshold;
     while (float(rand())/RAND_MAX < m_pcRay.rr)   m_pcRay.depth++;
 
     // Bind the ray tracing pipeline
@@ -322,28 +363,10 @@ void VkApp::raytrace()
     // Copy the ray tracer output image to the scanline output image
     // -- because we already have the operations needed to display
     // that image on the screen.
-    VkImageCopy imageCopyRegion{};
-    imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    imageCopyRegion.srcSubresource.layerCount = 1;
-    imageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    imageCopyRegion.dstSubresource.layerCount = 1;
-    imageCopyRegion.extent.width              = windowSize.width;
-    imageCopyRegion.extent.height             = windowSize.height;
-    imageCopyRegion.extent.depth              = 1;
+    CmdCopyImage(m_rtColCurrBuffer, m_scImageBuffer);
+    CmdCopyImage(m_rtColCurrBuffer, m_rtColPrevBuffer);
+    CmdCopyImage(m_rtNdCurrBuffer, m_rtNdPrevBuffer);
 
-    imageLayoutBarrier(m_commandBuffer, m_rtColCurrBuffer.image,
-                       VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    imageLayoutBarrier(m_commandBuffer, m_scImageBuffer.image,
-                       VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     
-    vkCmdCopyImage(m_commandBuffer,
-                   m_rtColCurrBuffer.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                   m_scImageBuffer.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                   1, &imageCopyRegion);
-    
-    imageLayoutBarrier(m_commandBuffer, m_scImageBuffer.image,
-                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
-    imageLayoutBarrier(m_commandBuffer, m_rtColCurrBuffer.image,
-                       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 }
 

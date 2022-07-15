@@ -46,7 +46,15 @@ void VkApp::destroyAllVulkanResources()
 
      vkDestroyPipelineLayout(m_device, m_rtPipelineLayout, nullptr);
      vkDestroyPipeline(m_device, m_rtPipeline, nullptr);
-     m_rtColCurrBuffer.destroy(m_device);
+
+	 m_rtColCurrBuffer.destroy(m_device);
+	 m_rtColPrevBuffer.destroy(m_device);
+
+	 m_rtNdCurrBuffer.destroy(m_device);
+
+	 m_rtNdPrevBuffer.destroy(m_device);
+
+	 m_rtKdCurrBuffer.destroy(m_device);
 
      m_scDesc.destroy(m_device);
 

@@ -17,5 +17,7 @@ void main()
     
     payload.hitPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
  
+    payload.depth = gl_HitTEXT;
+
     payload.hit = true;
 }

@@ -18,6 +18,10 @@ layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 layout(set=0, binding=0) uniform accelerationStructureEXT topLevelAS;
 layout(set=0, binding=1, rgba32f) uniform image2D colCurr; // Output image: m_rtColCurrBuffer
 layout(set=0, binding=2, scalar) buffer buffer_emitter{Emitter list[];} emitter;
+layout(set=0, binding=3, rgba32f) uniform image2D colPrev; // Output image: eOutPrevImage
+layout(set=0, binding=4, rgba32f) uniform image2D NdCurr; // Output image: eOutCurrNd 
+layout(set=0, binding=5, rgba32f) uniform image2D NdPrev; // Output image: eOutPrevNd 
+layout(set=0, binding=6, rgba32f) uniform image2D KdCurr; // Output image: eOutCurrKd 
 
 // Object model descriptor set: 0: matrices, 1:object buffer addresses, 2: texture list
 layout(set=1, binding=0) uniform _MatrixUniforms { MatrixUniforms mats; };
@@ -154,7 +158,7 @@ vec3 SampleTriangle(vec3 A, vec3 B ,vec3 C, inout uint seed)
     float b0 = 1-b1-b2;
     if(b0 < 0)
     {
-        b1  = 1-b1;
+        b1 = 1-b1;
         b2 = 1-b2;
         b0 = 1 - b1 -b2;
     }
@@ -176,6 +180,24 @@ vec3 EvalLight(Emitter L)
 {
     return L.emission;
 }
+
+void accumulateSample(vec3 firstNorm, float firstDepth, // Projected point’s normal and depth
+ ivec2 loc, // The pixel’s location (one of the four)
+ float bilinearWeight, // The pixel’s bilinear weight
+ inout vec4 sumC, inout float sumW // To receive the accumulated values
+ )
+ {
+   vec4 col = imageLoad( colPrev,loc);
+   vec4 Nd = imageLoad(NdPrev,loc); 
+   float w = bilinearWeight;
+
+   if(dot(firstNorm,Nd.xyz) < pcRay.n_threshold) w = 0.0;
+  
+   if(abs(firstDepth - Nd.w) > pcRay.d_threshold) w = 0.0;
+
+   sumC += w*col;
+   sumW += w;
+ }
 
 void main() 
 {
@@ -199,6 +221,11 @@ void main()
     vec3 C = vec3(0.0,0.0,0.0);
     vec3 W = vec3(1.0,1.0,1.0);
 
+    vec3 firstPos;
+    vec3 firstCol;
+    vec3 firstNorm;
+    float firstDepth;
+
 
     for (int i=0; i<pcRay.depth;  i++) {
         // Fire the ray;  hit or miss shaders will be invoked, passing results back in the payload
@@ -214,7 +241,7 @@ void main()
                     10000.0,              // ray max range
                     0                     // payload (location = 0)
                     );
-
+                 
         // If nothing was hit, output background color.
         if (!payload.hit) {
             break; }
@@ -234,48 +261,12 @@ void main()
         int matIdx   = matIndices.i[payload.primitiveIndex]; // The triangles material index
         Material mat = materials.m[matIdx]; // The triangles material
 
+       
+
+        
         // If material indicates triangle is a light, pass the light's
         // emission through all BRDFs to output to a  pixel.
         
-        // @@ A previous instruction to scale emission by 5 should be
-        // ignored.  Scale it as necessary to produce a comfortable
-        // image. Better yet, include a GUI slider to adjust exposure.
-        if (dot(mat.emission,mat.emission) > 0.0) {
-            C +=  mat.emission*W; 
-            break; }
-
-        Emitter lightInfo = SampleLight(payload.seed);
-        vec3 lightPoint = SampleTriangle(lightInfo.v0,lightInfo.v1,lightInfo.v2, payload.seed);
-        vec3 Wi = normalize(lightPoint - payload.hitPos);
-        float dist = length(lightPoint- payload.hitPos);
-        payload.occluded = true;
-
-        traceRayEXT(topLevelAS,
-            gl_RayFlagsOpaqueEXT
-            |gl_RayFlagsTerminateOnFirstHitEXT
-            |gl_RayFlagsSkipClosestHitShaderEXT, // ray flags
-            0xFF, // cull mask
-            0, // sbtRecordoffset
-            0, // sbtRecordStride
-            1, // sbtmissindex
-            payload.hitPos, // ray origin
-            0.001, // ray min range
-            Wi,         // ray direction
-            dist-0.001, // ray max range
-            0           // payload location
-            );
-
-        if(!payload.occluded)
-        {
-            const vec3 nrm  = lightInfo.normal;
-            vec3 N = normalize(nrm);  // Its normal
-            vec3 Wo = -rayD;
-            vec3 f = EvalBrdf(N, Wi, Wo, mat);
-            float p = PdfLight(lightInfo)/GeometryFactor(payload.hitPos,
-            N,lightPoint,lightInfo.normal);
-            C+= 0.5 * W *f/p * EvalLight(lightInfo);
-        }
-
         // Vertex of the triangle (Vertex has pos, nrm, tex)
         Vertex v0 = vertices.v[ind.x];
         Vertex v1 = vertices.v[ind.y];
@@ -286,40 +277,156 @@ void main()
         const vec3 nrm  = bc.x*v0.nrm      + bc.y*v1.nrm      + bc.z*v2.nrm;
         const vec2 uv =  bc.x*v0.texCoord + bc.y*v1.texCoord + bc.z*v2.texCoord;
 
-        // If the material has a texture, read diffuse color from it.
-        if (mat.textureId >= 0) {
+           // If the material has a texture, read diffuse color from it.
+        if (mat.textureId >= 0) 
+        {
             uint txtId = objResources.txtOffset + mat.textureId;
-            mat.diffuse = texture(textureSamplers[(txtId)], uv).xyz; }
+            mat.diffuse = texture(textureSamplers[(txtId)], uv).xyz; 
+        }
 
+        if(i== 0)
+        {
+            firstPos = payload.hitPos;
+            firstNorm =  normalize(nrm);
+            firstCol = mat.diffuse;
+            firstDepth = payload.depth;
+        }
+
+       // image. Better yet, include a GUI slider to adjust exposure.
+        if (dot(mat.emission,mat.emission) > 0.0) 
+        {
+            C +=  (pcRay.ExplicitLightRays? 0.5 :1.0) * ( W*mat.emission ); 
+            break; 
+        }
 
         // From the current hit point, setup N,L,V for BRDF calculation
         vec3 P = payload.hitPos;  // Current hit point
+
+        vec3 Wi; 
+        if(pcRay.ExplicitLightRays)
+        {
+            Emitter lightInfo = SampleLight(payload.seed);
+            vec3 lightPoint = SampleTriangle(lightInfo.v0,lightInfo.v1,lightInfo.v2, payload.seed);
+            Wi = normalize(lightPoint - payload.hitPos);
+            float dist = length(lightPoint- payload.hitPos);
+            payload.occluded = true;
+
+            traceRayEXT(topLevelAS,
+                gl_RayFlagsOpaqueEXT
+                |gl_RayFlagsTerminateOnFirstHitEXT
+                |gl_RayFlagsSkipClosestHitShaderEXT, // ray flags
+                0xFF, // cull mask
+                0, // sbtRecordoffset
+                0, // sbtRecordStride
+                1, // sbtmissindex
+                payload.hitPos, // ray origin
+                0.001, // ray min range
+                Wi,         // ray direction
+                dist-0.001, // ray max range
+                0           // payload location
+                );
+
+            if(!payload.occluded)
+            {
+                vec3 N = normalize(nrm);  // Its normal
+                vec3 Wo = -rayD;
+                vec3 f = EvalBrdf(N, Wi, Wo, mat);                    
+                float p = PdfLight(lightInfo)/GeometryFactor(payload.hitPos,N
+                                                            ,lightPoint,lightInfo.normal);
+               
+                C += 0.5 * W * f/p * EvalLight(lightInfo);
+            }
+        }// end explicit lights
+
+        
         vec3 N = normalize(nrm);  // Its normal
-         Wi = SampleBrdf(payload.seed, N);
+        Wi = SampleBrdf(payload.seed, N);
         vec3 Wo = -rayD;
         
         // Color via a BRDF calculation
-        vec3 f = EvalBrdf(N, Wi, Wo, mat);
+        vec3 f = EvalBrdf(N, Wi, Wo, mat);        
         float p = PdfBrdf(N,Wi)*pcRay.rr;
+        
         if (p != 0.0)
-            W *= f/p;           // Monte-Carlo
+            W *= f/p;// Monte-Carlo
 
+        // Step forward: Set the next ray's origin and direction to
+        // current point P, and the next sample direction Wi.
         rayO = P;
         rayD = Wi;
-        // @@ Step forward: Set the next ray's origin and direction to
-        // current point P, and the next sample direction Wi.
+    }
+
+    vec4 screenH = (mats.priorViewProj * vec4(firstPos,1.0)); // project to prev buffers
+    vec2 screen  = ((screenH.xy/screenH.w)+vec2(1.0)) /2.0; // H-division and map to [0,1]
+
+    vec4 oldAve =vec4(0.0,0.0,0.0,0.0);
+    float oldN = 0.0;
+
+    //oldAve = imageLoad(colCurr,ivec2(gl_LaunchIDEXT.xy));
+    //oldN = oldAve.w;
+    // If first... values were not defined, OR were defined but off-screen in Prev buffers:
+    if(dot(firstPos,firstPos) == 0.0
+    || screen.x < 0 || screen.x >1
+    || screen.y < 0 || screen.y >1)
+    {
+        // restart pixels accumulations
+        oldN = 0.0;
+        oldAve= vec4(0.0,0.0,0.0,0.0);
+    }
+    else
+    {
+        vec2 floc = screen * gl_LaunchSizeEXT.xy - vec2(0.5);
+        vec2 off = fract(floc); // offset of current pixel between 4 neighbours
+        ivec2 iloc = ivec2(floc); // (0,0) corner of the foor neighbours
+        // the four neighbouring pixels are iloc+(0,0), +(1,0), +(0,1)+ (1,1)
+        
+        vec4 sumC = vec4(0.0);
+        float sumW = 0;
+
+        // Standard notation for the bilinear weights used in 4th parameter below
+        float x0 = 1.0-off.x, x1 = off.x, y0 = 1.0-off.y, y1 = off.y;
+
+        accumulateSample(firstNorm,firstDepth,iloc+ivec2(0,0),x0*y0,sumC,sumW);
+        accumulateSample(firstNorm,firstDepth,iloc+ivec2(1,0),x1*y0,sumC,sumW);
+        accumulateSample(firstNorm,firstDepth,iloc+ivec2(0,1),x0*y1,sumC,sumW);
+        accumulateSample(firstNorm,firstDepth,iloc+ivec2(1,1),x1*y1,sumC,sumW);
+
+        if(sumW == 0.0)
+        {
+           oldN = 0.0;
+           oldAve = vec4(0.0);
+        }
+        else
+        {
+            vec4 history = sumC/sumW;
+            oldN = history.w;
+            oldAve.rgb = history.rgb;
+        }
     }
 
     // @@Read, accumulate and write the value C into the proper image pixel
     // (oldAve,oldN) = imageLoad(colCurr, ivec2(gl_LaunchIDEXT.xy));
-    vec4 oldAve = imageLoad(colCurr,ivec2(gl_LaunchIDEXT.xy));
-    float newN = oldAve.w + 1.0;
+    //vec4 oldAve = imageLoad(colCurr,ivec2(gl_LaunchIDEXT.xy));
+    float newN = oldN + 1.0;
     vec4 newAve = vec4(oldAve.rgb + (C-oldAve.rgb)/ newN, newN );
+    
     if(pcRay.moved == int(true)){
      newAve = vec4(0.0,0.0,0.0,0.0);
     }
     // @@ If the camera has moved, restart accumulation by setting (oldAve,oldN) to (0,0,0, 0)
-    imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy), newAve);
+    if(any(isnan(newAve)) == false)
+    {
+        imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy),newAve);
+    }
+    if(any(isnan(firstCol)) == false)
+    {
+         imageStore(KdCurr,  ivec2(gl_LaunchIDEXT.xy),vec4(firstCol, 0.0));
+    }
+    if(any(isnan(firstNorm)) == false)
+    {
+         imageStore(NdCurr,  ivec2(gl_LaunchIDEXT.xy),vec4(firstNorm,firstDepth));   
+    }
+
     // Recognize camera motion at "spin +=" in camera.cpp or "myCamera.eye +=" in app.cpp
     // Communicate the camera modified state via a m_pcRay variable.
 }
