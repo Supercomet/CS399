@@ -33,11 +33,21 @@ void drawGUI(VkApp& VK)
     // This needs a window if we want to dock it.
     ImGui::Begin("Debug");
     ImGui::Checkbox("Raytrace", &VK.useRaytracer);
+    ImGui::SliderFloat("RussianRoulette", &VK.m_pcRay.rr,0.0f, 1.0f);
+
     ImGui::Checkbox("Explicit Lights", &VK.useExplicit);
-    ImGui::Checkbox("history ", &VK.useHistory);
     ImGui::SliderFloat("N threshold", &VK.f_nThreshold, 0.0f,1.0f);
     ImGui::SliderFloat("D threshold", &VK.f_dThreshold, 0.0f,1.0f);
-    ImGui::SliderFloat("RussianRoulette", &VK.m_pcRay.rr,0.0f, 1.0f);
+
+    ImGui::Checkbox("History ", &VK.useHistory);
+
+    ImGui::Checkbox("Denoise ", &VK.useDenoise);
+    ImGui::SameLine();
+    ImGui::SliderInt("Atrous iterations", &VK.m_num_atrous_iterations,0,10);
+    ImGui::SliderFloat("N factor", &VK.f_normFactor, 0.0f,1.0f);
+    ImGui::SliderFloat("D factor", &VK.f_depthFactor, 0.0f,1.0f);
+    ImGui::SliderFloat("L factor", &VK.f_lumenFactor, 0.0f,1.0f);
+    ImGui::Checkbox("Demodulate ", &VK.useDemodulate);
     ImGui::Text("Iterations %d", VK.currIterations);
     ImGui::Text("Rate %.3f ms/frame (%.1f FPS)",
                 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);

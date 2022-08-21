@@ -43,6 +43,13 @@ START_ENUM(RtBindings)
   eOutPrevNd = 5,
   eOutCurrKd = 6
 END_ENUM();
+
+START_ENUM(DenoiseBindings)
+eInImage     = 0,  // Top-level acceleration structure
+eOutDenoiseImage = 1,   // Ray tracer output image
+eInCurrKd = 2,
+eInCurrNd = 3
+END_ENUM();
 // clang-format on
 
 
@@ -114,16 +121,11 @@ struct Material  // Created by readModel; used in shaders
 // Push constant structure for the ray tracer
 struct PushConstantDenoise
 {
-  float normFactor;
-  float depthFactor;
-  float varianceFactor;
-  float lumenFactor;
-
-  int  dist;
-  bool varianceView;
-  bool placeholder1;
-  bool placeholder2;
-
+	float normFactor;
+	float depthFactor;
+	float lumenFactor;
+	int stepwidth;
+	BOOL(demodulate);
 };
 
 struct RayPayload

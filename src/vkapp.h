@@ -203,7 +203,7 @@ public:
     float m_maxAnis = 0;
     size_t currIterations{ 0 };
     PushConstantRay m_pcRay{};  // Push constant for ray tracer
-    int m_num_atrous_iterations = 0;
+    int m_num_atrous_iterations = 5;
     PushConstantDenoise m_pcDenoise{};
     uint32_t handleSize{};
     uint32_t handleAlignment{};
@@ -244,9 +244,17 @@ public:
     bool useRaytracer = true;
     bool useExplicit = true;
     bool useHistory = true;
+    bool useDenoise = true;
+    bool prevUseDenoise = true;
     bool prevUseHistory = true;
     float f_nThreshold =0.95f;
     float f_dThreshold = 0.15f;
+
+    float f_normFactor =0.003f;
+    float f_depthFactor = 0.007f;
+    float f_lumenFactor = 0.0f;
+    bool useDemodulate = true;
+
     void prepareFrame();
     void ResetRtAccumulation();
     

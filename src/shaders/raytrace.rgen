@@ -288,6 +288,9 @@ void main()
         {
             firstPos = payload.hitPos;
             firstNorm =  normalize(nrm);
+            if(dot(firstNorm,firstNorm) == 0.0){
+            imageStore(colCurr, ivec2(gl_LaunchIDEXT.xy),vec4(100.0,0.0,0.0,1.0));
+            return;            }
             firstCol = mat.diffuse;
             firstDepth = payload.depth;
         }

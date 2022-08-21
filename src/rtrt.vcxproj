@@ -31,6 +31,7 @@
     <ClCompile Include="vkapp.cpp" />
     <ClCompile Include="camera.cpp" />
     <ClCompile Include="extensions_vk.cpp" />
+    <ClCompile Include="vkapp_denoise.cpp" />
     <ClCompile Include="vkapp_fns.cpp" />
     <ClCompile Include="vkapp_loadModel.cpp" />
     <ClCompile Include="vkapp_raytracing.cpp" />

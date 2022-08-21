@@ -33,6 +33,12 @@ void VkApp::destroyAllVulkanResources()
     // @@
      vkDeviceWaitIdle(m_device);  // Uncomment this when you have an m_device created.
 
+     m_denoiseBuffer.destroy(m_device);
+     m_denoiseDesc.destroy(m_device);
+
+     vkDestroyPipelineLayout(m_device, m_denoiseCompPipelineLayout, nullptr);
+     vkDestroyPipeline(m_device, m_denoisePipelineX, nullptr);
+
      m_rtBuilder.destroy();
      m_shaderBindingTableBW.destroy(m_device);
 

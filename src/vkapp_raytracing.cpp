@@ -325,6 +325,12 @@ void VkApp::raytrace()
         m_pcRay.moved = true;
         prevUseHistory = useHistory;
     }
+    if (prevUseDenoise != useDenoise)
+    {
+        // we just changed lets refresh
+        m_pcRay.moved = true;
+        prevUseDenoise = useDenoise;
+    }
 
     if (m_pcRay.moved)
     {

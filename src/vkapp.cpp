@@ -65,7 +65,8 @@ VkApp::VkApp(App* _app) : app(_app)
     createScPipeline();
 
     createRtBuffers();
-    // createDenoiseBuffer();
+    
+    createDenoiseBuffer();
 
     // createStuff();
 
@@ -77,8 +78,8 @@ VkApp::VkApp(App* _app) : app(_app)
      createRtPipeline();
      createRtShaderBindingTable();
 
-    // createDenoiseDescriptorSet();
-    // createDenoiseCompPipeline();
+    createDenoiseDescriptorSet();
+    createDenoiseCompPipeline();
 
 }
 
@@ -96,7 +97,10 @@ void VkApp::drawFrame()
 		if (useRaytracer)
 		{
 			raytrace();
-			//denoise(); 
+            if (useDenoise)
+            {
+			    denoise();
+            }
 		}
 		else
 		{

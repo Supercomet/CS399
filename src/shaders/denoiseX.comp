@@ -1,0 +1,75 @@
+#version 460
+#extension GL_EXT_shader_explicit_arithmetic_types_int64  : require
+#extension GL_GOOGLE_include_directive : enable
+
+#include "shared_structs.h"
+
+const int GROUP_SIZE = 128;
+layout(local_size_x = GROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+layout(set = 0, binding = 0, rgba32f) uniform image2D inImage;
+layout(set = 0, binding = 1, rgba32f) uniform image2D outImage;
+layout(set = 0, binding = 2, rgba32f) uniform image2D kdBuff;
+layout(set = 0, binding = 3, rgba32f) uniform image2D ndBuff;
+
+layout(push_constant) uniform _pcDenoise { PushConstantDenoise pc; };
+float kernel[5] = float[5](1.0/16.0, 4.0/16.0, 6.0/16.0, 4.0/16.0, 1.0/16.0);
+
+void main()
+{
+    ivec2 gpos = ivec2(gl_GlobalInvocationID.xy);
+
+    // Values for the center pixel being denoised
+    vec3 kval = imageLoad(kdBuff, gpos).xyz + vec3(0.1);  // its firsthit Kd color
+    if (!pc.demodulate) kval = vec3(1);
+    vec3  cval = imageLoad(inImage, gpos).xyz/kval; // The pixel's noisy value, demodulated
+    float Nval = imageLoad(inImage, gpos).w;  // The noisy pixel's count (denominator for average)
+    if (dot(kval,kval) == 0.0) cval = vec3(1);
+    
+    float dval = imageLoad(ndBuff, gpos).w;  // The pixel's firsthit depth
+    vec3 nval = imageLoad(ndBuff, gpos).xyz;  // The pixel's firsthit normal
+
+    vec3 sum = vec3(0.0);
+    float cum_w = 0.0;
+    // In a 5x5 loop, retrieve neighboring pixels values (as for above
+    // central pixel) with offsets controlled by pc.stepwidth.  This
+    // is the A-Trous (with holes) part of the algorithm.
+    for (int i=-2;  i<=2;  i++)
+        for (int j=-2;  j<=2;  j++) {
+            ivec2 offset = ivec2(i,j)*pc.stepwidth;
+            // ...
+            vec3 ktmp =  imageLoad(kdBuff, gpos+offset).xyz + vec3(0.1);  // its firsthit Kd color
+            if (!pc.demodulate) ktmp = vec3(1);
+
+            vec3 ctmp = imageLoad(inImage, gpos+offset).xyz/ktmp; // this is C bar
+            float Ntmp = imageLoad(inImage, gpos+offset).w; 
+            if (dot(ktmp,ktmp) == 0.0) ctmp = vec3(1);
+
+            float oDepth = imageLoad(ndBuff,gpos+offset).w;
+
+            
+            vec3 oNormal = imageLoad(ndBuff,gpos+offset).xyz;
+            // ...
+            float pixWeight = kernel[i+2] * kernel[j+2];
+            float luminanceEdge = 1.0;
+            float depthEdge = exp(- pow(oDepth- dval,2)/pc.depthFactor );
+            float normalEdge = exp(- dot(nval-oNormal,nval-oNormal)/(pc.stepwidth*pc.stepwidth*pc.normFactor));
+
+            float weight = pixWeight*luminanceEdge*normalEdge *depthEdge;
+
+            // and accumulate
+            //  sum of weights times pixel value for numerator and
+            //  sum of weights for denominator.
+
+            // The weight should be the product of
+            //  two Gaussian weights {1,4,6,4,1}/16 indexed by i+2 and j+2
+            //  a color edge-stopping function
+            //  a depth edge-stopping function
+            //  a normal edge-stopping function
+            sum += ctmp * weight;
+            cum_w += weight;
+        }
+
+    vec3 val = kval*sum/cum_w; // Re-modulate the color
+    if (cum_w <= 0) val = cval;
+    imageStore(outImage, gpos, vec4(val,Nval));
+}
